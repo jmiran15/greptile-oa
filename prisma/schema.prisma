@@ -1,90 +1,118 @@
 generator client {
   provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider   = "postgresql"
   url        = env("DATABASE_URL")
+  extensions = [vector]
 }
-
-
-
-
 
 // lets have "Updates" in the database
 
-
 model Update {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   githubPrRef String?
-  date DateTime
-  title String
-  body String
+  date        DateTime
+  title       String
+  body        String
 }
 
 model User {
-  id            String     @id @default(cuid())
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  githubId      String     @unique
-  username      String
-  repositories  Repository[]
+  id           String       @id @default(cuid())
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  githubId     String       @unique
+  username     String
+  repositories Repository[]
 }
 
 model Repository {
-  id            String     @id @default(cuid())
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  githubId      Int
-  name          String
-  fullName      String
-  owner         String
-  user          User       @relation(fields: [userId], references: [id])
-  userId        String
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  githubId  Int
+  name      String
+  fullName  String
+  owner     String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
 
   @@unique([userId, githubId])
 }
 
-
-
+// WIP
 
 model Repo {
-  id            String     @id @default(cuid())
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  repoUrl       String
+  owner         String
+  repo          String
+  defaultBranch String
 
-  // what else should we store? 
-
-  isPending Boolean @default(true)
+  isPending  Boolean     @default(true)
   embeddings Embedding[]
+  nodes      RepoNode[]
 }
 
+model RepoNode {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  path      String // Full path in the repo
+  type      Type     @default(file)
+  status    Status   @default(pending) // "pending" | "processing" | "completed" | "failed"
+
+  url        String // store the url instead of the content? 
+  sha        String // the sha of the file
+  // content       String?  // For files, store the content
+  embeddings Embedding[]
+
+  // Relationships
+  repo     Repo       @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  repoId   String
+  parent   RepoNode?  @relation("NodeHierarchy", fields: [parentId], references: [id])
+  parentId String?
+  children RepoNode[] @relation("NodeHierarchy")
+
+  upstreamSummary   String? // from the initial upwards pass
+  downstreamSummary String? // from the downwards pass
+
+  @@unique([repoId, path])
+  @@index([repoId, status])
+  @@index([parentId])
+}
+
+enum Status {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum Type {
+  file
+  folder
+}
 
 model Embedding {
-  id         String                      @default(cuid())
-  createdAt  DateTime                    @default(now())
-  embedding  Unsupported("vector(1536)")
-  content    String
-  repo   Repo                     @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  repoId String
+  id        String                      @default(cuid())
+  createdAt DateTime                    @default(now())
+  embedding Unsupported("vector(1536)")
+
+  chunkContent    String
+  embeddedContent String // this is an augmentation
+  repo            Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  repoId          String // this seems unnecessary since we have node - but is used for being able to query at the repo level 
+
+  node   RepoNode @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  nodeId String
 
   @@id([id, repoId])
   @@index([repoId])
 }
-
-
-
-
-
-
-
-// lets setup like a general - no auth - repo question test. 
-// heres how it works - enter the path to the repo, repo gets added as one of the repos in the db - so we see it in the list too - and when 
-// it is finished ingestion, we can click into it and ask a question (simple input - return text under it)
-
-
-
-
-

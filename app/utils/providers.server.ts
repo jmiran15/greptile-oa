@@ -1,3 +1,4 @@
+import { CohereClient } from "cohere-ai";
 import { App } from "octokit";
 import OpenAI from "openai";
 
@@ -25,3 +26,7 @@ const app = new App({
 export const octokit = await app.getInstallationOctokit(
   parseInt(process.env.INSTALLATION_ID)
 );
+
+export const cohere = new CohereClient({
+  token: process.env.COHERE_API_KEY,
+});
