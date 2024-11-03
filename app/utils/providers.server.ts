@@ -1,5 +1,5 @@
 import { CohereClient } from "cohere-ai";
-import { App } from "octokit";
+import { Octokit } from "octokit";
 import OpenAI from "openai";
 
 export const openai = new OpenAI({
@@ -10,23 +10,10 @@ export const openai = new OpenAI({
   },
 });
 
-if (
-  !process.env.APP_ID ||
-  !process.env.PRIVATE_KEY ||
-  !process.env.INSTALLATION_ID
-) {
-  throw new Error("APP_ID, PRIVATE_KEY and INSTALLATION_ID must be set");
-}
-
-const app = new App({
-  appId: process.env.APP_ID,
-  privateKey: process.env.PRIVATE_KEY,
-});
-
-export const octokit = await app.getInstallationOctokit(
-  parseInt(process.env.INSTALLATION_ID)
-);
-
 export const cohere = new CohereClient({
   token: process.env.COHERE_API_KEY,
 });
+
+export function createGitHubClient(accessToken: string) {
+  return new Octokit({ auth: accessToken });
+}
