@@ -9,57 +9,40 @@ datasource db {
   extensions = [vector]
 }
 
-// lets have "Updates" in the database
-
-model Update {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  githubPrRef String?
-  date        DateTime
-  title       String
-  body        String
-}
-
 model User {
-  id           String       @id @default(cuid())
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  githubId     String       @unique
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  githubId     String   @unique
   username     String
-  repositories Repository[]
-}
-
-model Repository {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  githubId  Int
-  name      String
-  fullName  String
-  owner     String
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
-
-  @@unique([userId, githubId])
+  displayName  String?
+  avatarUrl    String?
+  repositories Repo[]
 }
 
 // WIP
 
 model Repo {
-  id            String   @id @default(cuid())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  repoUrl       String
-  owner         String
-  repo          String
-  defaultBranch String
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  name            String // Repository name
+  fullName        String // Full name (owner/repo)
+  description     String? // Repository description
+  defaultBranch   String
+  stargazersCount Int      @default(0)
 
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  // Processing fields
   isPending  Boolean     @default(true)
   embeddings Embedding[]
   nodes      RepoNode[]
-
   changelogs Changelog[]
+
+  @@unique([userId, fullName])
 }
 
 model RepoNode {

@@ -1,11 +1,20 @@
-import type { ActionFunctionArgs } from "@remix-run/node";
-import { redirect } from "@remix-run/node";
-import { authenticator } from "~/utils/auth.server";
+import { LoaderFunction, redirect } from "@remix-run/node";
+import { generateStateToken } from "~/utils/session.server";
 
-export async function loader() {
-  return redirect("/login");
-}
+export const loader: LoaderFunction = async ({ request }) => {
+  const { state, cookie } = await generateStateToken(request);
 
-export async function action({ request }: ActionFunctionArgs) {
-  return authenticator.authenticate("github", request);
-}
+  const githubAuthUrl = new URL("https://github.com/login/oauth/authorize");
+  githubAuthUrl.searchParams.append("client_id", process.env.GITHUB_CLIENT_ID!);
+  githubAuthUrl.searchParams.append(
+    "redirect_uri",
+    "http://localhost:3000/auth/github/callback"
+  );
+  githubAuthUrl.searchParams.append("state", state);
+
+  return redirect(githubAuthUrl.toString(), {
+    headers: {
+      "Set-Cookie": cookie,
+    },
+  });
+};

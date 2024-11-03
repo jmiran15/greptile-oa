@@ -15,6 +15,8 @@ export const sessionStorage = createCookieSessionStorage({
 });
 
 export const USER_SESSION_KEY = "userId";
+export const GITHUB_TOKEN_KEY = "githubToken";
+export const GITHUB_STATE_KEY = "githubState";
 
 export async function getSession(request: Request) {
   const cookie = request.headers.get("Cookie");
@@ -24,16 +26,20 @@ export async function getSession(request: Request) {
 export async function createUserSession({
   request,
   userId,
+  accessToken,
   remember,
   redirectTo,
 }: {
   request: Request;
   userId: string;
+  accessToken: string;
   remember: boolean;
   redirectTo: string;
 }) {
   const session = await getSession(request);
   session.set(USER_SESSION_KEY, userId);
+  session.set(GITHUB_TOKEN_KEY, accessToken);
+
   return redirect(redirectTo, {
     headers: {
       "Set-Cookie": await sessionStorage.commitSession(session, {
@@ -43,6 +49,34 @@ export async function createUserSession({
       }),
     },
   });
+}
+
+export async function generateStateToken(request: Request) {
+  const session = await getSession(request);
+  const state = crypto.randomUUID();
+  session.set(GITHUB_STATE_KEY, state);
+
+  return {
+    state,
+    cookie: await sessionStorage.commitSession(session),
+  };
+}
+
+export async function verifyState(request: Request, state: string) {
+  const session = await getSession(request);
+  const savedState = session.get(GITHUB_STATE_KEY);
+
+  if (!savedState || savedState !== state) {
+    throw new Error("Invalid state parameter");
+  }
+
+  session.unset(GITHUB_STATE_KEY);
+  return sessionStorage.commitSession(session);
+}
+
+export async function getGitHubToken(request: Request) {
+  const session = await getSession(request);
+  return session.get(GITHUB_TOKEN_KEY);
 }
 
 export async function logout(request: Request) {
