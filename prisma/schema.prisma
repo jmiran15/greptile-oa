@@ -40,7 +40,8 @@ model Repo {
   isPending  Boolean     @default(true)
   embeddings Embedding[]
   nodes      RepoNode[]
-  changelogs Changelog[]
+
+  logs Log[]
 
   @@unique([userId, fullName])
 }
@@ -102,7 +103,7 @@ model Embedding {
   @@index([repoId])
 }
 
-model Changelog {
+model Log {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -111,9 +112,23 @@ model Changelog {
   repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
   repoId String
 
-  // the pr info 
+  // the pr info (if it was generated from a pr)
+  prNumber      Int?
+  prTitle       String?
+  prDescription String?
+  baseBranch    String? // so we can show in the UI something like "main -> feature"
+  headBranch    String?
 
-  // the status
+  title         String
+  summary       String?
+  content       String?
+  publishedDate DateTime?
+  status        LogStatus @default(draft)
 
-  // the actual content
+}
+
+enum LogStatus {
+  draft
+  published
+  archived
 }

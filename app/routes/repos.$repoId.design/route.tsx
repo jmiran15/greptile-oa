@@ -1,8 +1,10 @@
+// customize a changelog page
+
 import { useState } from "react";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { cn } from "~/lib/utils";
-import ChangelogPreview from "./$repoId.logs._index/preview";
+import ChangelogPreview from "../$repoId.logs._index/preview";
 
 type PreviewDevice = "desktop" | "mobile";
 

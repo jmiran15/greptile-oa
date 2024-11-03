@@ -1,18 +1,19 @@
+// TESTING ROUTE for generating changelogs
+
 import { ActionFunctionArgs } from "@remix-run/node";
-import { Form, json, useLoaderData } from "@remix-run/react";
+import { Form, json } from "@remix-run/react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { prisma } from "~/db.server";
 import { generateChangelogQueue } from "~/queues/generateChangelog/generateChangelog.server";
-export async function loader() {
-  const changelogs = await prisma.changelog.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+// export async function loader() {
+//   const changelogs = await prisma.changelog.findMany({
+//     orderBy: {
+//       createdAt: "desc",
+//     },
+//   });
 
-  return json({ changelogs });
-}
+//   return json({ changelogs });
+// }
 
 export async function action({ request }: ActionFunctionArgs) {
   const formData = await request.formData();
@@ -33,7 +34,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Changelogs() {
-  const { changelogs } = useLoaderData<typeof loader>();
+  // const { changelogs } = useLoaderData<typeof loader>();
 
   return (
     <div className="flex flex-col items-center justify-center h-screen w-full max-w-4xl mx-auto container">
@@ -47,9 +48,9 @@ export default function Changelogs() {
         <Button type="submit">Add</Button>
       </Form>
 
-      {changelogs.map((changelog) => (
+      {/* {changelogs.map((changelog) => (
         <div key={changelog.id}>{changelog.repoId}</div>
-      ))}
+      ))} */}
     </div>
   );
 }
