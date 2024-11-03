@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { prisma } from "~/db.server";
-import { PatchSummarySchema } from "./sumarizePatch.server";
+import { PatchSummarySchema } from "../prompts/changelog/sumarizePatch.server";
 
 export interface ChangelogNode {
   path: string;

@@ -1,5 +1,5 @@
 import { octokit } from "~/utils/providers.server";
-import { Chunk, RepoNodeWithRepo } from "./ingestFile.server";
+import { Chunk, RepoNodeWithRepo } from "../queues/ingestion/ingestFile.server";
 
 export function normalizeContentWithLineMap(content: string): {
   normalizedContent: string;

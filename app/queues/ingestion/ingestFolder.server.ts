@@ -1,11 +1,8 @@
 import { prisma } from "~/db.server";
 import { Queue } from "~/utils/queue.server";
-import {
-  batchProcessEmbeddings,
-  fileIngestQueue,
-} from "../ingestFile/ingestFile.server";
-import { folderPossibleQuestions } from "./possibleQuestions.server";
-import { folderSummary } from "./summary.server";
+import { folderPossibleQuestions } from "../../prompts/ingestion/folder/possibleQuestions.server";
+import { folderSummary } from "../../prompts/ingestion/folder/summary.server";
+import { batchProcessEmbeddings, fileIngestQueue } from "./ingestFile.server";
 
 interface IngestFolderData {
   nodeId: string;

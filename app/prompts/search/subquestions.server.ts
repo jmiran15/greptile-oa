@@ -1,8 +1,7 @@
 import { hpf, hpstatic } from "@helicone/prompts";
-import { zodResponseFormat } from "openai/helpers/zod.mjs";
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import { z } from "zod";
-import { openai } from "~/utils/providers.server";
+import { createCompletion } from "~/utils/generateStructuredOutput.server";
 
 const MODEL = "gpt-4o-mini";
 
@@ -58,48 +57,21 @@ export const QueryDecompositionSchema = z.object({
     ),
 });
 
+const config = {
+  model: MODEL,
+  systemPrompt: subquestionsSystemPrompt,
+  createUserPrompt: (question: string) => subquestionsUserPrompt(question),
+  schema: QueryDecompositionSchema,
+  responseFormatKey: "subQuestions",
+} as const;
+
 export async function generateSubQuestions({
   originalQuery,
 }: {
   originalQuery: string;
 }): Promise<z.infer<typeof QueryDecompositionSchema> | null> {
-  try {
-    const completion = await openai.beta.chat.completions.parse(
-      {
-        model: MODEL,
-        messages: [
-          subquestionsSystemPrompt,
-          subquestionsUserPrompt(originalQuery),
-        ],
-        response_format: zodResponseFormat(
-          QueryDecompositionSchema,
-          "subQuestions"
-        ),
-        temperature: 0,
-        max_tokens: 2048,
-      },
-      {
-        headers: {
-          "Helicone-Property-Environment": process.env.NODE_ENV,
-        },
-      }
-    );
-
-    const result = completion.choices[0].message;
-
-    if (result.parsed) {
-      return result.parsed;
-    } else if (result.refusal) {
-      return null;
-    }
-  } catch (e) {
-    if ((e as Error).constructor.name == "LengthFinishReasonError") {
-      // Retry with a higher max tokens
-      console.log("Too many tokens: ", (e as Error).message);
-    } else {
-      // Handle other exceptions
-      console.log("An error occurred: ", (e as Error).message);
-    }
-  }
-  return null;
+  return createCompletion({
+    input: originalQuery,
+    config,
+  });
 }

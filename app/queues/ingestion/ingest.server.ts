@@ -8,7 +8,7 @@
 import { buildDAGFromTree } from "~/utils/dag.server";
 import { Queue } from "~/utils/queue.server";
 import { GitHubTreeResponse } from "~/utils/treeProcessing.server";
-import { fileIngestQueue } from "./ingestFile/ingestFile.server";
+import { fileIngestQueue } from "./ingestFile.server";
 
 // The codebase structure can be extremely large! so we need to be selective about what we decide is worth ingesting
 // Step one is to prune anything from the codebase structure that is irrelevant to the codebase, and should not be embedded (e.g, config files, node_modules, package-lock.json, etc...)

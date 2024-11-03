@@ -1,14 +1,7 @@
-// summarizes a patch - given the patch and a summary of the file
-
-// TODO - hanlde large patches
-// try
-// if fail, split in half and try each half - if succesful, merge results
-// if still too big, split in half again, etc...
-
-import { zodResponseFormat } from "openai/helpers/zod.mjs";
+// generates questions to get context from codebase about changes
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import { z } from "zod";
-import { openai } from "~/utils/providers.server";
+import { createCompletion } from "~/utils/generateStructuredOutput.server";
 
 const MODEL = "gpt-4o-mini";
 
@@ -90,50 +83,22 @@ const askCodebaseUserPrompt = ({ markdownTree }: { markdownTree: string }) =>
     ],
   } as ChatCompletionMessageParam);
 
+const config = {
+  model: MODEL,
+  systemPrompt: askCodebaseSystemPrompt,
+  createUserPrompt: ({ markdownTree }: { markdownTree: string }) =>
+    askCodebaseUserPrompt({ markdownTree }),
+  schema: ChangelogQuestionsSchema,
+  responseFormatKey: "questions",
+} as const;
+
 export async function askQuestions({
   markdownTree,
 }: {
   markdownTree: string;
 }): Promise<z.infer<typeof ChangelogQuestionsSchema> | null> {
-  try {
-    const completion = await openai.beta.chat.completions.parse(
-      {
-        model: MODEL,
-        messages: [
-          askCodebaseSystemPrompt,
-          askCodebaseUserPrompt({
-            markdownTree,
-          }),
-        ],
-        response_format: zodResponseFormat(
-          ChangelogQuestionsSchema,
-          "questions"
-        ),
-        temperature: 0,
-        max_tokens: 2048,
-      },
-      {
-        headers: {
-          "Helicone-Property-Environment": process.env.NODE_ENV,
-        },
-      }
-    );
-
-    const result = completion.choices[0].message;
-
-    if (result.parsed) {
-      return result.parsed;
-    } else if (result.refusal) {
-      return null;
-    }
-  } catch (e) {
-    if ((e as Error).constructor.name == "LengthFinishReasonError") {
-      // Retry with a higher max tokens
-      console.log("Too many tokens: ", (e as Error).message);
-    } else {
-      // Handle other exceptions
-      console.log("An error occurred: ", (e as Error).message);
-    }
-  }
-  return null;
+  return createCompletion({
+    input: { markdownTree },
+    config,
+  });
 }

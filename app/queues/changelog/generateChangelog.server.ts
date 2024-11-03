@@ -7,10 +7,19 @@ import { prisma } from "~/db.server";
 import { chat } from "~/utils/openai";
 import { octokit } from "~/utils/providers.server";
 import { Queue } from "~/utils/queue.server";
-import { askQuestions, CodebaseQuestion } from "./askCodebase.server";
-import { PatchSummarySchema, summarizePatch } from "./sumarizePatch.server";
-import { buildChangelogTree, generateMarkdownTree } from "./treeBuilder.server";
-import { updateChangelog } from "./updateChangelog.server";
+import {
+  askQuestions,
+  CodebaseQuestion,
+} from "../../prompts/changelog/askCodebase.server";
+import {
+  PatchSummarySchema,
+  summarizePatch,
+} from "../../prompts/changelog/sumarizePatch.server";
+import { updateChangelog } from "../../prompts/changelog/updateChangelog.server";
+import {
+  buildChangelogTree,
+  generateMarkdownTree,
+} from "../../utils/treeBuilder.server";
 
 interface DiffEntry {
   sha: string;

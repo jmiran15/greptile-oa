@@ -1,15 +1,9 @@
 // summarizes a patch - given the patch and a summary of the file
 
-// TODO - hanlde large patches
-// try
-// if fail, split in half and try each half - if succesful, merge results
-// if still too big, split in half again, etc...
-
 import { z } from "zod";
 
-import { zodResponseFormat } from "openai/helpers/zod.mjs";
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
-import { openai } from "~/utils/providers.server";
+import { createCompletion } from "~/utils/generateStructuredOutput.server";
 
 const MODEL = "gpt-4o-mini";
 
@@ -226,6 +220,20 @@ async function processPatchSegment(
   return mergePatchSummaries(firstResult, secondResult);
 }
 
+const config = {
+  model: MODEL,
+  systemPrompt: summarizePatchSystem,
+  createUserPrompt: ({
+    patch,
+    fileSummary,
+  }: {
+    patch: string;
+    fileSummary: string;
+  }) => summarizePatchUser({ patch, fileSummary }),
+  schema: PatchSummarySchema,
+  responseFormatKey: "summary",
+} as const;
+
 async function summarizePatchDirect({
   patch,
   fileSummary,
@@ -233,45 +241,10 @@ async function summarizePatchDirect({
   patch: string;
   fileSummary: string;
 }): Promise<z.infer<typeof PatchSummarySchema> | null> {
-  try {
-    const completion = await openai.beta.chat.completions.parse(
-      {
-        model: MODEL,
-        messages: [
-          summarizePatchSystem,
-          summarizePatchUser({
-            patch,
-            fileSummary,
-          }),
-        ],
-        response_format: zodResponseFormat(PatchSummarySchema, "summary"),
-        temperature: 0,
-        max_tokens: 2048,
-      },
-      {
-        headers: {
-          "Helicone-Property-Environment": process.env.NODE_ENV,
-        },
-      }
-    );
-
-    const result = completion.choices[0].message;
-
-    if (result.parsed) {
-      return result.parsed;
-    } else if (result.refusal) {
-      return null;
-    }
-  } catch (e) {
-    if ((e as Error).constructor.name == "LengthFinishReasonError") {
-      // Retry with a higher max tokens
-      console.log("Too many tokens: ", (e as Error).message);
-    } else {
-      // Handle other exceptions
-      console.log("An error occurred: ", (e as Error).message);
-    }
-  }
-  return null;
+  return createCompletion({
+    input: { patch, fileSummary },
+    config,
+  });
 }
 
 export async function summarizePatch({

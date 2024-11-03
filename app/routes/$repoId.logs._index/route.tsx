@@ -2,7 +2,7 @@
 
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useParams } from "@remix-run/react";
-import { useMobileScreen } from "~/hooks/use-mobile-screen";
+import { useIsMobile } from "~/hooks/use-mobile";
 import Changes from "./changes";
 import ChangelogHeader from "./header";
 
@@ -132,7 +132,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
 export default function RepoChangelog() {
   const { repo, logs } = useLoaderData<typeof loader>();
   const { repoId } = useParams();
-  const isMobile = useMobileScreen();
+  const isMobile = useIsMobile();
 
   return (
     <div className="min-h-screen bg-background flex flex-col gap-10">

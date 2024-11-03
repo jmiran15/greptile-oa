@@ -1,8 +1,7 @@
 import { z } from "zod";
 
-import { zodResponseFormat } from "openai/helpers/zod.mjs";
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
-import { openai } from "~/utils/providers.server";
+import { createCompletion } from "~/utils/generateStructuredOutput.server";
 
 const MODEL = "gpt-4o-mini";
 
@@ -60,6 +59,30 @@ const chunkPossibleQuestionsUserPrompt = ({
     ],
   } as ChatCompletionMessageParam);
 
+const config = {
+  model: MODEL,
+  systemPrompt: chunkPossibleQuestionsSystemPrompt,
+  createUserPrompt: ({
+    filepath,
+    startLine,
+    endLine,
+    code,
+  }: {
+    filepath: string;
+    startLine: number;
+    endLine: number;
+    code: string;
+  }) =>
+    chunkPossibleQuestionsUserPrompt({
+      filepath,
+      startLine,
+      endLine,
+      code,
+    }),
+  schema: PossibleQuestionsSchema,
+  responseFormatKey: "questions",
+} as const;
+
 export async function chunkPossibleQuestions({
   filepath,
   startLine,
@@ -71,48 +94,8 @@ export async function chunkPossibleQuestions({
   endLine: number;
   code: string;
 }): Promise<z.infer<typeof PossibleQuestionsSchema> | null> {
-  try {
-    const completion = await openai.beta.chat.completions.parse(
-      {
-        model: MODEL,
-        messages: [
-          chunkPossibleQuestionsSystemPrompt,
-          chunkPossibleQuestionsUserPrompt({
-            filepath,
-            startLine,
-            endLine,
-            code,
-          }),
-        ],
-        response_format: zodResponseFormat(
-          PossibleQuestionsSchema,
-          "questions"
-        ),
-        temperature: 0,
-        max_tokens: 2048,
-      },
-      {
-        headers: {
-          "Helicone-Property-Environment": process.env.NODE_ENV,
-        },
-      }
-    );
-
-    const result = completion.choices[0].message;
-
-    if (result.parsed) {
-      return result.parsed;
-    } else if (result.refusal) {
-      return null;
-    }
-  } catch (e) {
-    if ((e as Error).constructor.name == "LengthFinishReasonError") {
-      // Retry with a higher max tokens
-      console.log("Too many tokens: ", (e as Error).message);
-    } else {
-      // Handle other exceptions
-      console.log("An error occurred: ", (e as Error).message);
-    }
-  }
-  return null;
+  return createCompletion({
+    input: { filepath, startLine, endLine, code },
+    config,
+  });
 }

@@ -1,7 +1,6 @@
-import { zodResponseFormat } from "openai/helpers/zod.mjs";
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import { z } from "zod";
-import { openai } from "~/utils/providers.server";
+import { createCompletion } from "~/utils/generateStructuredOutput.server";
 
 const MODEL = "gpt-4o-mini";
 
@@ -43,48 +42,21 @@ export const RuntimeQueryExpansionSchema = z.object({
     .describe("Important terms or concepts from the original query"),
 });
 
+const config = {
+  model: MODEL,
+  systemPrompt: augmentQuerySystemPrompt,
+  createUserPrompt: (question: string) => augmentQueryUserPrompt(question),
+  schema: RuntimeQueryExpansionSchema,
+  responseFormatKey: "additionalQueries",
+} as const;
+
 export async function generateSimilarUserQueries({
   originalQuery,
 }: {
   originalQuery: string;
 }): Promise<z.infer<typeof RuntimeQueryExpansionSchema> | null> {
-  try {
-    const completion = await openai.beta.chat.completions.parse(
-      {
-        model: MODEL,
-        messages: [
-          augmentQuerySystemPrompt,
-          augmentQueryUserPrompt(originalQuery),
-        ],
-        response_format: zodResponseFormat(
-          RuntimeQueryExpansionSchema,
-          "additionalQueries"
-        ),
-        temperature: 0,
-        max_tokens: 2048,
-      },
-      {
-        headers: {
-          "Helicone-Property-Environment": process.env.NODE_ENV,
-        },
-      }
-    );
-
-    const result = completion.choices[0].message;
-
-    if (result.parsed) {
-      return result.parsed;
-    } else if (result.refusal) {
-      return null;
-    }
-  } catch (e) {
-    if ((e as Error).constructor.name == "LengthFinishReasonError") {
-      // Retry with a higher max tokens
-      console.log("Too many tokens: ", (e as Error).message);
-    } else {
-      // Handle other exceptions
-      console.log("An error occurred: ", (e as Error).message);
-    }
-  }
-  return null;
+  return createCompletion({
+    input: originalQuery,
+    config,
+  });
 }

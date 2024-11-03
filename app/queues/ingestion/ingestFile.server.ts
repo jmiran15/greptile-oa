@@ -3,13 +3,13 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "~/db.server";
 import { openai } from "~/utils/providers.server";
 import { Queue } from "~/utils/queue.server";
-import { checkAndTriggerParent } from "../ingestFolder/ingestFolder.server";
-import { chunkPossibleQuestions } from "./chunkPossibleQuestions.server";
-import { chunkSummary } from "./chunkSummary.server";
+import { chunkPossibleQuestions } from "../../prompts/ingestion/file/chunkPossibleQuestions.server";
+import { chunkSummary } from "../../prompts/ingestion/file/chunkSummary.server";
 import {
   normalizeContentWithLineMap,
   splitRepoNodeIntoChunks,
-} from "./processFileContents.server";
+} from "../../utils/processFileContents.server";
+import { checkAndTriggerParent } from "./ingestFolder.server";
 
 interface IngestFileData {
   nodeId: string;

@@ -1,3 +1,5 @@
+// updates a changelog based on context (q&a)
+
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import { openai } from "~/utils/providers.server";
 

@@ -1,7 +1,6 @@
-import { zodResponseFormat } from "openai/helpers/zod.mjs";
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import { z } from "zod";
-import { openai } from "~/utils/providers.server";
+import { createCompletion } from "~/utils/generateStructuredOutput.server";
 const MODEL = "gpt-4o-mini";
 
 export const FolderQuestionsSchema = z.object({
@@ -76,6 +75,27 @@ const folderPossibleQuestionsUserPrompt = ({
     ],
   } as ChatCompletionMessageParam);
 
+const config = {
+  model: MODEL,
+  systemPrompt: folderPossibleQuestionsSystemPrompt,
+  createUserPrompt: ({
+    folderPath,
+    childrenLength,
+    childrenSummaries,
+  }: {
+    folderPath: string;
+    childrenLength: number;
+    childrenSummaries: string;
+  }) =>
+    folderPossibleQuestionsUserPrompt({
+      folderPath,
+      childrenLength,
+      childrenSummaries,
+    }),
+  schema: FolderQuestionsSchema,
+  responseFormatKey: "functionality_questions",
+} as const;
+
 export async function folderPossibleQuestions({
   folderPath,
   childrenLength,
@@ -85,47 +105,8 @@ export async function folderPossibleQuestions({
   childrenLength: number;
   childrenSummaries: string;
 }): Promise<z.infer<typeof FolderQuestionsSchema> | null> {
-  try {
-    const completion = await openai.beta.chat.completions.parse(
-      {
-        model: MODEL,
-        messages: [
-          folderPossibleQuestionsSystemPrompt,
-          folderPossibleQuestionsUserPrompt({
-            folderPath,
-            childrenLength,
-            childrenSummaries,
-          }),
-        ],
-        response_format: zodResponseFormat(
-          FolderQuestionsSchema,
-          "functionality_questions"
-        ),
-        temperature: 0,
-        max_tokens: 2048,
-      },
-      {
-        headers: {
-          "Helicone-Property-Environment": process.env.NODE_ENV,
-        },
-      }
-    );
-
-    const result = completion.choices[0].message;
-
-    if (result.parsed) {
-      return result.parsed;
-    } else if (result.refusal) {
-      return null;
-    }
-  } catch (e) {
-    if ((e as Error).constructor.name == "LengthFinishReasonError") {
-      // Retry with a higher max tokens
-      console.log("Too many tokens: ", (e as Error).message);
-    } else {
-      // Handle other exceptions
-      console.log("An error occurred: ", (e as Error).message);
-    }
-  }
-  return null;
+  return createCompletion({
+    input: { folderPath, childrenLength, childrenSummaries },
+    config,
+  });
 }
