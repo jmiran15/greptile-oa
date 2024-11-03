@@ -1,3 +1,7 @@
+// TODO - we also need to do the DAG stuff ... i.e. I found a node to be relevant, so I go up in the chain to get a better understanding
+// also need to the user prompt to be like notes, i.e. summaries (probably of the file), then the code (so it understands)
+// also .. make sure chunks of the same file are next to each other and that they don't repeat the summaries.
+
 // TODO: update the prompts to be more code focused instead of general RAG
 import { createId } from "@paralleldrive/cuid2";
 import { V2RerankResponse } from "cohere-ai/api";

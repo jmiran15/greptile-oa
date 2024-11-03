@@ -58,6 +58,8 @@ model Repo {
   isPending  Boolean     @default(true)
   embeddings Embedding[]
   nodes      RepoNode[]
+
+  changelogs Changelog[]
 }
 
 model RepoNode {
@@ -115,4 +117,20 @@ model Embedding {
 
   @@id([id, repoId])
   @@index([repoId])
+}
+
+model Changelog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // the repo
+  repo   Repo   @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  repoId String
+
+  // the pr info 
+
+  // the status
+
+  // the actual content
 }
