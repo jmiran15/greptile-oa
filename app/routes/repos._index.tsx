@@ -1,5 +1,5 @@
 import { json, LoaderFunction, redirect } from "@remix-run/node";
-import { Form, useLoaderData } from "@remix-run/react";
+import { Form, Link, useLoaderData } from "@remix-run/react";
 import { Button } from "~/components/ui/button";
 import { prisma } from "~/db.server";
 import { getSession } from "~/utils/session.server";
@@ -57,8 +57,9 @@ export default function Repos() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
         {repos.map((repo) => (
-          <div
+          <Link
             key={repo.id}
+            to={`/repos/${repo.id}`}
             className="rounded-lg border bg-card text-card-foreground shadow-sm p-6"
           >
             <h3 className="text-lg font-semibold">{repo.name}</h3>
@@ -69,7 +70,7 @@ export default function Repos() {
               <span>⭐ {repo.stargazersCount}</span>
               <span>🔀 {repo.defaultBranch}</span>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>
