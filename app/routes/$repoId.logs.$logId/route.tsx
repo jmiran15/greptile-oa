@@ -1,3 +1,5 @@
+// view a single log
+
 import { Separator } from "@radix-ui/react-select";
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { Link, useLoaderData, useParams } from "@remix-run/react";

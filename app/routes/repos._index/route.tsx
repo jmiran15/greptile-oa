@@ -1,3 +1,5 @@
+// index route showing repos + add repo (mainly for auth redirection without forcing a specific repo id)
+
 import { json, LoaderFunction, redirect } from "@remix-run/node";
 import { Form, Link, useLoaderData } from "@remix-run/react";
 import { Button } from "~/components/ui/button";

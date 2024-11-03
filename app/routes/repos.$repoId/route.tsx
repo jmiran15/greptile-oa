@@ -25,6 +25,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
 } from "~/components/ui/sidebar";
+import { Toaster } from "~/components/ui/toaster";
 import { prisma } from "~/db.server";
 import { getSession } from "~/utils/session.server";
 
@@ -63,8 +64,8 @@ export default function RepoLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen">
-        <Sidebar>
+      <div className="fixed inset-0 flex h-screen overflow-hidden">
+        <Sidebar className="flex flex-col flex-shrink-0">
           <SidebarHeader>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -174,7 +175,8 @@ export default function RepoLayout() {
           </SidebarFooter>
         </Sidebar>
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 relative h-full overflow-hidden">
+          <Toaster />
           <Outlet />
         </main>
       </div>

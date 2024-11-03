@@ -1,3 +1,5 @@
+// the public facing changelog page for a repo
+
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useParams } from "@remix-run/react";
 import { useMobileScreen } from "~/hooks/use-mobile-screen";
