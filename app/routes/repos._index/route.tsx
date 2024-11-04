@@ -1,7 +1,9 @@
 // index route showing repos + add repo (mainly for auth redirection without forcing a specific repo id)
 
-import { json, LoaderFunction, redirect } from "@remix-run/node";
+import type { Repo } from "@prisma/client";
+import { json, LoaderFunction, redirect, SerializeFrom } from "@remix-run/node";
 import { Form, Link, useLoaderData } from "@remix-run/react";
+import Container from "~/components/container";
 import { Button } from "~/components/ui/button";
 import { prisma } from "~/db.server";
 import { getSession } from "~/utils/session.server";
@@ -40,8 +42,8 @@ export default function Repos() {
   const { user, repos } = useLoaderData<typeof loader>();
 
   return (
-    <div className="flex flex-col items-center justify-start min-h-screen w-full max-w-7xl mx-auto container py-8">
-      <div className="w-full flex items-center justify-between mb-8">
+    <Container className="max-w-5xl">
+      <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <img
             src={user.avatarUrl}
@@ -57,11 +59,12 @@ export default function Repos() {
         </Form>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
-        {repos.map((repo) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {repos.map((repo: SerializeFrom<Repo>) => (
           <Link
+            prefetch="intent"
             key={repo.id}
-            to={`/repos/${repo.id}`}
+            to={`/repos/${repo.id}/logs`}
             className="rounded-lg border bg-card text-card-foreground shadow-sm p-6"
           >
             <h3 className="text-lg font-semibold">{repo.name}</h3>
@@ -75,6 +78,6 @@ export default function Repos() {
           </Link>
         ))}
       </div>
-    </div>
+    </Container>
   );
 }

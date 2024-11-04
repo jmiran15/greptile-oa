@@ -23,12 +23,10 @@ export default function App() {
         <meta name="viewport" content="width=device-width,initial-scale=1" />
       </head>
 
-      <body className="h-full bg-transparent">
-        
-          <Outlet />
-          <ScrollRestoration />
-          <Scripts />
-        
+      <body className="h-full bg-transparent overflow-hidden">
+        <Outlet />
+        <ScrollRestoration />
+        <Scripts />
       </body>
     </html>
   );

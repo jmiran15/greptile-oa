@@ -217,9 +217,7 @@ function formatQuestionAsQuery(question: z.infer<typeof CodebaseQuestion>) {
 }
 
 // COMMENTS
-// the plan
-
-// first of all preprocess the patches statically - some things are obvious - like if a file was complretely deleted and added somewhere else, etc...
+// preprocess the patches statically - some things are obvious - like if a file was complretely deleted and added somewhere else, etc...
 
 // create a summary of the changes in a file
 // the prompt for this should be something like

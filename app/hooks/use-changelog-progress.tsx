@@ -8,8 +8,6 @@ export function useChangelogProgress(logId?: string) {
   const { repoId } = useParams();
   const eventSource = useEventSource(`/api/repo/${repoId}/logs/progress`);
 
-  console.log("eventSource", eventSource);
-
   const progress = useMemo(() => {
     if (!eventSource) return null;
     const data = JSON.parse(eventSource) as LogProgress;

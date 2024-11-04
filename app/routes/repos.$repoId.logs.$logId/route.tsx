@@ -50,7 +50,7 @@ const UpdateLogSchema = z.object({
 });
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
-  const { repoId, logId } = params;
+  const { logId } = params;
 
   const log = await prisma.log.findUnique({
     where: { id: logId },
@@ -145,23 +145,22 @@ export default function EditLog() {
   const navigation = useNavigation();
   const publishFetcher = useFetcher();
   const archiveFetcher = useFetcher();
-
   const [isEdited, setIsEdited] = useState(false);
   const [showBlockerDialog, setShowBlockerDialog] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-
-  // Block navigation if there are unsaved changes
   const blocker = useBlocker(isEdited);
   const { toast } = useToast();
-
   const progress = useChangelogProgress(log.id);
 
   const isGenerating =
-    progress?.progress.status && progress.progress.status !== "completed";
-  const hasError = progress?.progress.status === "error";
+    (progress?.progress.status && progress.progress.status !== "completed") ||
+    log.generationStatus !== "completed";
+  const hasError =
+    progress?.progress.status === "error" || log.generationStatus === "error";
 
   const renderProgressBadge = () => {
-    if (!progress?.progress.status) return null;
+    if (!progress?.progress.status || log.generationStatus === "completed")
+      return null;
 
     return (
       <div className="mb-8 p-4 rounded-lg border bg-muted">
@@ -170,7 +169,7 @@ export default function EditLog() {
             <Loader2 className="h-4 w-4 animate-spin" />
           )}
           <span className="text-sm font-medium">
-            {getStatusDisplay(progress.progress.status)}
+            {getStatusDisplay(progress.progress.status || log.generationStatus)}
           </span>
         </div>
       </div>
@@ -227,7 +226,7 @@ export default function EditLog() {
 
   return (
     <Container className="max-w-5xl">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" asChild>
             <Link to={`/repos/${log.repoId}/logs`}>
@@ -307,12 +306,12 @@ export default function EditLog() {
         </div>
       </div>
 
-      <Separator className="mb-8" />
+      <Separator />
 
       {renderProgressBadge()}
 
       {log.prNumber && (
-        <div className="mb-8 p-4 rounded-lg border bg-muted">
+        <div className="p-4 rounded-lg border bg-muted">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <GitMerge className="h-4 w-4" />
             <span>Created from PR #{log.prNumber}</span>
@@ -328,7 +327,7 @@ export default function EditLog() {
         id="edit-form"
         method="post"
         ref={formRef}
-        className="space-y-8"
+        className="space-y-4"
         onChange={() => setIsEdited(true)}
       >
         <input type="hidden" name="intent" value="update" />

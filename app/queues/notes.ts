@@ -1,64 +1,25 @@
-// okay, so essentially we need to get all the tree items that are blobs (because those are the ones that actually have any content)
-
-// ASSUME AT THIS POINT WE HAVE AS INPUT A TREEITEM OF TYPE BLOB
-
-// THIS blob is an entire code file
-// heres what we can already do with this info ... chunk - augment chunks - augment file - embed everything
-
 // ingest a single file - we can think of a single file as a "document"
 
-// TODO - we should probably include some codebase context in here somehow?
-
-// I'm thinking we "embed" at the folder level as well - somewhat of an overview/summary of the contents
-// We should also embed a summary of each file - + questions for the files as well
-
-// Okay, here is what im thinking:
 // File gets chunked up regularly + all the regular RAG augmentaiton stuff
 // while augmenting chunks - we generate a summary of that chunk (small)
-
 // we then combine all of these summaries to create a summary of a file
 // then we augment the file summary + generate possible questions for the file
-
 // we do this for all files
 
-// MY IDEAL WAY OF DOING THIS IS TURNING THE REPO STRUCTURE INTO A GRAPH - then we can process a level at a time
-// first the leaf nodes which are all files
-// then the other nodes which are all folders
-// it is essentially a dag? (i think so)
-// so all the lower nodes depend on the higher nodes
-
 // after all of the file stuff is saved in the db - we can start processing folders (i.e. augmenting them and embedding)
-
 // if the file is in a folder, we also create a summary of the folder, based on the summary of all the files + generate possible questions for the folder
 
-// we do this recursively for all folders (since folders can contain other folders)
-
-// THIS SHOULD GIVE US AN EXTREMELY ROBUST EMBEDDING SET FOR ANY FILE IN THE CODEBASE! + we partition the embedding space so it should take TOO long!
-
 // AT INFERENCE TIME (Questions)
-// - just generate all the possible augmentations (like we do for chatmate), but for code
-
+// - generate all the possible augmentations, but for code
 // rerank with cohere
 
-// END INGESTION + INFERENCE
-
-// -> BY TOMORROW
-// (/repo) enter repo path, add repo to db, ingest the repo, click on repo and be able to ask a question
-// (/changelog) enter the pr path (must match some repo in the db, o/w don't generate) -> generate the changelog
-
-// Sunday should all be Github integration stff + UI
-
-// and monday we will probably finish up.
-
 // CHANGLOG GENERATION PROCESS
-// I dont think it will take TOOOO long
 // summarize changes + group
 // create changelog / group + combine all the changelogs
 // ask Questions
 // generate final version with answers
-// CHANGLOG GENERATION PROCESS
 
-// OKAY - now at changelog generation time - for the initial v0.1 of the changelog, we can probably also include the file and folder summaries
+// at changelog generation time - for the initial v0.1 of the changelog, we can probably also include the file and folder summaries
 // for example ... if there was a change in /app/utils/openai.ts, we could inlude the summary of app, of utils, and of openai.ts file (at the top of the prompt)
 
 // 1. for all the changes, generate short, but super detailed (i.e. mentiones names, functions names, paths, etc...) explanations of the code (perhaps for the explanation of what the original code does, we can include the summary we already have!), and the changes.

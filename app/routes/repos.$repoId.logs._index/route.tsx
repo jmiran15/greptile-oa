@@ -1,21 +1,13 @@
-import type { Log } from "@prisma/client";
-import { json, LoaderFunctionArgs, SerializeFrom } from "@remix-run/node";
+import { json, LoaderFunctionArgs } from "@remix-run/node";
 import { Link, useLoaderData, useParams } from "@remix-run/react";
-import { Clock, ExternalLink, GitMerge, Loader2, Plus } from "lucide-react";
-import { DateTime } from "luxon";
-import { LinkCard, LinkCardBody, LinkCardHeader } from "~/components/card";
+import { ExternalLink, Plus } from "lucide-react";
 import Container from "~/components/container";
 import Description from "~/components/description";
-import { Markdown } from "~/components/markdown";
 import Title from "~/components/title";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
 import { prisma } from "~/db.server";
-import {
-  getStatusDisplay,
-  useChangelogProgress,
-} from "~/hooks/use-changelog-progress";
+import { LogCard } from "./log-card";
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
   const { repoId } = params;
@@ -42,96 +34,25 @@ export const loader = async ({ params }: LoaderFunctionArgs) => {
 };
 
 export default function Logs() {
+  const { repoId } = useParams();
   const { logs } = useLoaderData<typeof loader>();
+
+  if (!repoId) {
+    return null;
+  }
 
   return (
     <Container className="max-w-5xl">
       <LogsHeader />
       <Separator />
-      <div className="space-y-4 overflow-y-auto flex-1 w-full">
+      <div className="space-y-4 overflow-y-auto no-scrollbar flex-1 w-full">
         {logs.length === 0 ? (
           <div className="text-center text-gray-500">No logs found</div>
         ) : (
-          logs.map((log) => <LogCard key={log.id} log={log} />)
+          logs.map((log) => <LogCard key={log.id} log={log} repoId={repoId} />)
         )}
       </div>
     </Container>
-  );
-}
-
-function LogCard({ log }: { log: SerializeFrom<Log> }) {
-  const { repoId } = useParams();
-  const progress = useChangelogProgress(log.id);
-
-  const statusVariants = {
-    draft: progress?.progress.status
-      ? "bg-blue-100 text-blue-800"
-      : "bg-yellow-100 text-yellow-800",
-    published: "bg-green-100 text-green-800",
-    archived: "bg-gray-100 text-gray-800",
-  };
-
-  const renderStatus = () => {
-    if (progress?.progress.status && progress.progress.status !== "completed") {
-      return (
-        <Badge
-          className={`${statusVariants[log.status]} flex items-center gap-1`}
-        >
-          <Loader2 className="h-3 w-3 animate-spin" />
-          {getStatusDisplay(progress.progress.status)}
-        </Badge>
-      );
-    }
-
-    return (
-      <Badge className={statusVariants[log.status]}>
-        {log.status.charAt(0).toUpperCase() + log.status.slice(1)}
-      </Badge>
-    );
-  };
-
-  function getFormattedDate() {
-    if (log.status === "published" && log.publishedDate) {
-      return `Published ${DateTime.fromJSDate(
-        new Date(log.publishedDate)
-      ).toRelative()}`;
-    }
-    return `Last updated ${DateTime.fromJSDate(
-      new Date(log.updatedAt)
-    ).toRelative()}`;
-  }
-
-  return (
-    <LinkCard to={`/repos/${repoId}/logs/${log.id}`} className="mb-4">
-      <div className="p-4 flex flex-col gap-1">
-        <LinkCardHeader title={log.title} tag={renderStatus()} />
-        <LinkCardBody>
-          {log.summary && (
-            <div className="relative">
-              <div className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                <Markdown content={log.summary} className="prose-xs" />
-              </div>
-              <div className="absolute bottom-0 right-0 w-1/4 h-full bg-gradient-to-l from-white to-transparent" />
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-            {log.prNumber && (
-              <div className="flex items-center gap-1">
-                <GitMerge className="w-4 h-4" />
-                <span>
-                  PR #{log.prNumber}: {log.baseBranch} → {log.headBranch}
-                </span>
-              </div>
-            )}
-            <div className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
-              <span>{getFormattedDate()}</span>
-            </div>
-          </div>
-        </LinkCardBody>
-      </div>
-    </LinkCard>
   );
 }
 

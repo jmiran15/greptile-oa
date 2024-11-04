@@ -6,8 +6,11 @@ import {
 } from "@remix-run/node";
 import { Form, useLoaderData, useNavigation } from "@remix-run/react";
 import { useState } from "react";
+import Container from "~/components/container";
+import Description from "~/components/description";
+import Title from "~/components/title";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Card, CardContent } from "~/components/ui/card";
 import { Checkbox } from "~/components/ui/checkbox";
 import { prisma } from "~/db.server";
 import { createGitHubClient } from "~/utils/providers.server";
@@ -39,7 +42,7 @@ export const loader: LoaderFunction = async ({ request }) => {
   const { data: repos } = await github.rest.repos.listForAuthenticatedUser({
     sort: "updated",
     per_page: 100,
-    visibility: "all",
+    visibility: "public",
   });
 
   return json<LoaderData>({ availableRepos: repos });
@@ -105,12 +108,15 @@ export default function SelectRepos() {
   const [disabled, setDisabled] = useState(true);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <CardTitle>Select Repositories</CardTitle>
-        </CardHeader>
-        <CardContent>
+    <Container className="max-w-5xl">
+      <div className="flex flex-col sm:flex-row items-start justify-between mb-6">
+        <div className="flex flex-col">
+          <Title>Select Repositories</Title>
+          <Description>Choose repositories to track changes</Description>
+        </div>
+      </div>
+      <Card>
+        <CardContent className="pt-6">
           <Form
             method="post"
             onChange={(e) => {
@@ -121,7 +127,7 @@ export default function SelectRepos() {
             }}
             className="space-y-4"
           >
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-4">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pr-4">
               {availableRepos.map((repo) => (
                 <label
                   key={repo.id}
@@ -153,6 +159,6 @@ export default function SelectRepos() {
           </Form>
         </CardContent>
       </Card>
-    </div>
+    </Container>
   );
 }
