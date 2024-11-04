@@ -348,7 +348,7 @@ export async function batchProcessEmbeddings(
   embeddingsToCreate: EmbeddingsToCreate[],
   repoNode: RepoNodeWithRepo
 ) {
-  const EMBEDDING_BATCH_SIZE = 10;
+  const EMBEDDING_BATCH_SIZE = 40;
 
   for (let i = 0; i < embeddingsToCreate.length; i += EMBEDDING_BATCH_SIZE) {
     const batch = embeddingsToCreate.slice(i, i + EMBEDDING_BATCH_SIZE);

@@ -27,14 +27,13 @@ export function LogCard({
 
   const renderStatus = () => {
     if (
-      progress?.progress.status &&
-      progress.progress.status !== "completed" &&
+      (progress?.progress.status && progress.progress.status !== "completed") ||
       log.generationStatus !== "completed"
     ) {
       return (
         <Badge className={`bg-blue-100 text-blue-800 flex items-center gap-1`}>
           <Loader2 className="h-3 w-3 animate-spin" />
-          {getStatusDisplay(progress.progress.status || log.generationStatus)}
+          {getStatusDisplay(progress?.progress.status ?? log.generationStatus)}
         </Badge>
       );
     }

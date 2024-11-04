@@ -36,8 +36,8 @@ export default function ChangelogEntry() {
   const { log } = useLoaderData<typeof loader>();
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-4xl px-4 py-12">
+    <div className="h-screen bg-background overflow-y-auto no-scrollbar">
+      <div className="mx-auto max-w-4xl px-4 py-12 ">
         <Link
           to={`/${repoId}/logs`}
           className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-8"
@@ -46,7 +46,7 @@ export default function ChangelogEntry() {
           Back to Changelog
         </Link>
 
-        <article className="space-y-8">
+        <article className="space-y-8 ">
           <header className="space-y-4">
             <time className="text-sm text-muted-foreground">
               {log.publishedDate &&

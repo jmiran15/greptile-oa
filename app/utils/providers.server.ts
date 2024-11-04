@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { CohereClient } from "cohere-ai";
 import { Octokit } from "octokit";
 import OpenAI from "openai";
@@ -8,6 +9,10 @@ export const openai = new OpenAI({
   defaultHeaders: {
     "Helicone-Auth": "Bearer pk-helicone-ivx7gdy-mbfezoy-tgk3pda-wvlzxzi",
   },
+});
+
+export const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 export const cohere = new CohereClient({

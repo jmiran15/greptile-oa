@@ -175,9 +175,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
       repoId,
       githubAccessToken: token,
     });
-    console.log("flowTreeId", flowTreeId);
-    // You'll implement this part
+
     return json({ success: true, flowTreeId });
+  } else if (intent === "skipIngestion") {
+    const repo = await prisma.repo.update({
+      where: { id: repoId },
+      data: { ingested: true, finishedInitialization: true },
+    });
+    return json({ success: true, repo });
   }
 
   return json({ success: false });
@@ -219,12 +224,11 @@ export default function RepoLayout() {
 
   return (
     <>
-      {(!currentRepo.ingested || hasActiveIngestion) && (
+      {!currentRepo.ingested && (
         <IngestionProgressModal
           repoId={currentRepo.id}
           hasActiveIngestion={hasActiveIngestion}
           onTriggerIngestion={() => {
-            // You'll implement this
             fetcher.submit(
               {
                 intent: "triggerIngestion",
@@ -233,6 +237,20 @@ export default function RepoLayout() {
                 method: "post",
               }
             );
+          }}
+          skipIngestion={() => {
+            fetcher.submit(
+              {
+                intent: "skipIngestion",
+              },
+              {
+                method: "post",
+              }
+            );
+          }}
+          refreshIngestion={() => {
+            // revalidate the loader to get dag
+            fetcher.load(`/repos/${currentRepo.id}`);
           }}
           finishedInitialization={currentRepo.finishedInitialization}
           dag={dag}
@@ -254,7 +272,7 @@ export default function RepoLayout() {
                     <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width]">
                       {repos.map((repo: SerializeFrom<Repo>) => (
                         <DropdownMenuItem key={repo.id} asChild>
-                          <Link prefetch="intent" to={`/repos/${repo.id}`}>
+                          <Link prefetch="intent" to={`/repos/${repo.id}/logs`}>
                             {repo.name}
                           </Link>
                         </DropdownMenuItem>

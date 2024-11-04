@@ -14,6 +14,8 @@ interface IngestionProgressModalProps {
   repoId: string;
   hasActiveIngestion: boolean;
   onTriggerIngestion: () => void;
+  skipIngestion: () => void;
+  refreshIngestion: () => void;
   finishedInitialization: boolean;
   dag: Record<string, SerializedDAGNode>;
 }
@@ -22,6 +24,8 @@ export function IngestionProgressModal({
   repoId,
   hasActiveIngestion,
   onTriggerIngestion,
+  skipIngestion,
+  refreshIngestion,
   finishedInitialization,
   dag,
 }: IngestionProgressModalProps) {
@@ -46,6 +50,7 @@ export function IngestionProgressModal({
         [progress.queueName]: progress,
       }));
       if (progress.queueName === "triggerLeafs" && progress.completed) {
+        refreshIngestion();
         setInitialized(true);
       }
     } else {
@@ -111,7 +116,7 @@ export function IngestionProgressModal({
       <DialogContent
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
-        className="sm:max-w-[800px]"
+        className="sm:max-w-5xl"
       >
         {!hasActiveIngestion ? (
           <div className="text-center space-y-4">
@@ -122,8 +127,17 @@ export function IngestionProgressModal({
         ) : !initialized ? (
           renderInitializationProgress()
         ) : (
-          <div className="h-[600px]">
-            <DAGProgress nodeProgress={nodeProgress} dag={dag} />
+          <div className="flex flex-col h-[700px]">
+            <div className="flex-1">
+              <DAGProgress nodeProgress={nodeProgress} dag={dag} />
+            </div>
+            <div className="mt-4 flex flex-col items-center gap-2 border-t pt-4">
+              <Button onClick={skipIngestion}>Skip Ingestion</Button>
+              <p className="text-sm text-muted-foreground text-center">
+                The ingestion process might take a while, if you skip it will
+                continue trying to ingest in background
+              </p>
+            </div>
           </div>
         )}
       </DialogContent>

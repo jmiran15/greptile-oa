@@ -4,6 +4,7 @@ import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { Form, useActionData, useNavigation } from "@remix-run/react";
 import { Loader2 } from "lucide-react";
 import Container from "~/components/container";
+import { Markdown } from "~/components/markdown";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { chat } from "~/utils/openai";
@@ -73,10 +74,13 @@ export default function Chat() {
                 Loading...
               </div>
             ) : (
-              <p className="text-sm leading-relaxed">
-                {actionData?.result?.choices[0].message.content ||
-                  "Ask a question to get started"}
-              </p>
+              <Markdown
+                content={
+                  actionData?.result?.choices[0].message.content ||
+                  "Ask a question to get started"
+                }
+                className="prose max-w-none"
+              />
             )}
           </div>
         </div>
