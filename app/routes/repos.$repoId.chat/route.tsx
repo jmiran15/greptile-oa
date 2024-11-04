@@ -2,6 +2,8 @@
 
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { Form, useActionData, useNavigation } from "@remix-run/react";
+import { Loader2 } from "lucide-react";
+import Container from "~/components/container";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { chat } from "~/utils/openai";
@@ -31,34 +33,58 @@ export default function Chat() {
   const navigation = useNavigation();
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen w-full max-w-6xl mx-auto container py-8">
-      <Form method="post" className="flex flex-col gap-4 w-full">
+    <Container className="max-w-5xl">
+      <Form method="post" className="space-y-8">
         <div className="flex flex-col gap-2">
-          <label htmlFor="query" className="text-sm font-medium">
-            Your Question
+          <label
+            htmlFor="query"
+            className="text-sm font-medium text-muted-foreground"
+          >
+            Ask a question about this repository
           </label>
           <div className="flex gap-2">
             <Input
               id="query"
               name="query"
-              placeholder="Ask something about the repository..."
+              placeholder="e.g., How does the `useIsInstalled` hook work?"
               className="flex-1"
             />
-            <Button type="submit">Ask</Button>
+            <Button type="submit" disabled={navigation.state === "submitting"}>
+              {navigation.state === "submitting" ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Asking...
+                </>
+              ) : (
+                "Ask"
+              )}
+            </Button>
           </div>
         </div>
 
-        <div className="mt-8 w-full">
-          <h2 className="text-lg font-semibold mb-4">Response</h2>
-          <div className="border rounded-lg p-4 min-h-[100px] bg-muted">
-            <p className="text-gray-500">
-              {navigation.formData && navigation.formData.get("query")
-                ? "loading..."
-                : actionData?.result?.choices[0].message.content}
-            </p>
+        <div className="space-y-2">
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Response
+          </h2>
+          <div className="rounded-lg border bg-muted p-4 text-card-foreground min-h-[200px]">
+            {navigation.state === "submitting" ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading...
+              </div>
+            ) : (
+              <p className="text-sm leading-relaxed">
+                {actionData?.result?.choices[0].message.content ||
+                  "Ask a question to get started"}
+              </p>
+            )}
           </div>
         </div>
       </Form>
-    </div>
+    </Container>
   );
 }
+
+export const handle = {
+  PATH: (repoId: string) => `/repos/${repoId}/chat`,
+};

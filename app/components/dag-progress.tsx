@@ -88,12 +88,6 @@ export function DAGProgress({ nodeProgress, dag }: DAGProgressProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // Create a mapping of ID to path for easier lookups
-  const idToPath = Object.entries(dag).reduce((acc, [path, node]) => {
-    acc[node.id] = path;
-    return acc;
-  }, {} as Record<string, string>);
-
   // Initialize nodes and edges only once
   useEffect(() => {
     const { levels, horizontalPositions } = calculateNodePositions(dag);
@@ -107,7 +101,6 @@ export function DAGProgress({ nodeProgress, dag }: DAGProgressProps) {
       data: {
         label: createNodeLabel(path, node, nodeProgress[node.id]),
         status: nodeProgress[node.id]?.progress.status || node.status,
-        path, // Store the path in the node data
       },
       style: createNodeStyle(
         nodeProgress[node.id]?.progress.status || node.status,
@@ -130,23 +123,22 @@ export function DAGProgress({ nodeProgress, dag }: DAGProgressProps) {
 
     setNodes(initialNodes);
     setEdges(initialEdges);
-  }, [dag, nodeProgress]);
+  }, [dag]); // Only recreate when dag changes
 
   // Update only affected nodes when progress changes
   useEffect(() => {
     setNodes((nds) =>
       nds.map((node) => {
         const progress = nodeProgress[node.id];
-        if (!progress) return node;
+        const dagNode = Object.values(dag).find((n) => n.id === node.id);
 
-        const path = idToPath[node.id];
-        if (!path || !dag[path]) return node;
+        if (!progress || !dagNode) return node;
 
         return {
           ...node,
           data: {
             ...node.data,
-            label: createNodeLabel(path, dag[path], progress),
+            label: createNodeLabel(node.id, dagNode, progress),
             status: progress.progress.status,
           },
           style: createNodeStyle(
@@ -163,7 +155,7 @@ export function DAGProgress({ nodeProgress, dag }: DAGProgressProps) {
         animated: nodeProgress[edge.source]?.progress.status === "processing",
       }))
     );
-  }, [nodeProgress, dag, idToPath]);
+  }, [nodeProgress, dag]);
 
   return (
     <div className="w-full h-full">
@@ -202,13 +194,14 @@ export function DAGProgress({ nodeProgress, dag }: DAGProgressProps) {
   );
 }
 
-// Helper functions
+// Helper functions to keep the component clean
 function createNodeLabel(
   path: string,
   node: SerializedDAGNode,
   progress?: NodeProgress
 ) {
-  if (!node) return null; // Add safety check
+  if (!node) return <div>Loading...</div>;
+
   const displayName = path.split("/").pop() || path;
   return (
     <div className="flex flex-col items-center">

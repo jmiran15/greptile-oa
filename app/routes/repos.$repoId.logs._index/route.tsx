@@ -160,3 +160,7 @@ function LogsHeader() {
     </div>
   );
 }
+
+export const handle = {
+  PATH: (repoId: string) => `/repos/${repoId}/logs`,
+};

@@ -19,7 +19,6 @@ export async function loader({ params }: LoaderFunctionArgs) {
     where: {
       id: logId,
       repoId,
-      generationStatus: "completed",
       status: "published",
     },
   });

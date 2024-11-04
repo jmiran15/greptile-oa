@@ -10,6 +10,7 @@ import {
   type LoaderFunctionArgs,
 } from "@remix-run/node";
 import { Link, useFetcher, useLoaderData } from "@remix-run/react";
+import { motion } from "framer-motion";
 import { ExternalLink, Monitor, Smartphone } from "lucide-react";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
@@ -172,7 +173,7 @@ export default function RepoDesign() {
           <div className="flex-1 relative">
             <div
               className={cn(
-                "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border rounded-lg shadow-lg overflow-hidden origin-center",
+                "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border rounded-lg shadow-lg overflow-hidden origin-center transition-all duration-300",
                 {
                   "w-[1200px] h-[800px] scale-[0.45]": device === "desktop",
                   "w-[390px] h-[844px] scale-[0.55]": device === "mobile",
@@ -207,28 +208,30 @@ export function DeviceSwitcher({
     <div
       className={cn("flex items-center rounded-md border shadow-sm", className)}
     >
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => onChange("desktop")}
-        className={cn(
-          "px-3 rounded-none",
-          device === "desktop" && "bg-gray-100"
-        )}
-      >
-        <Monitor className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => onChange("mobile")}
-        className={cn(
-          "px-3 rounded-none",
-          device === "mobile" && "bg-gray-100"
-        )}
-      >
-        <Smartphone className="h-4 w-4" />
-      </Button>
+      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onChange("desktop")}
+          className={cn("px-3", device === "desktop" && "bg-gray-100")}
+        >
+          <Monitor className="h-4 w-4" />
+        </Button>
+      </motion.div>
+      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onChange("mobile")}
+          className={cn("px-3", device === "mobile" && "bg-gray-100")}
+        >
+          <Smartphone className="h-4 w-4" />
+        </Button>
+      </motion.div>
     </div>
   );
 }
+
+export const handle = {
+  PATH: (repoId: string) => `/repos/${repoId}/design`,
+};

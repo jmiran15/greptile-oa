@@ -35,7 +35,6 @@ export async function loader({ params }: LoaderFunctionArgs) {
   const logs = await prisma.log.findMany({
     where: {
       repoId,
-      generationStatus: "completed",
       status: "published",
     },
     orderBy: {

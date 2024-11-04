@@ -403,3 +403,7 @@ export default function EditLog() {
     </Container>
   );
 }
+
+export const handle = {
+  PATH: (repoId: string) => `/repos/${repoId}/logs`,
+};

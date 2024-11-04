@@ -6,13 +6,18 @@ import {
   redirect,
   SerializeFrom,
 } from "@remix-run/node";
-import { Link, Outlet, useFetcher, useLoaderData } from "@remix-run/react";
+import {
+  Link,
+  Outlet,
+  useFetcher,
+  useLoaderData,
+  useMatches,
+} from "@remix-run/react";
 import {
   ChevronDown,
   LayoutDashboard,
   List,
   MessageCircle,
-  Settings,
 } from "lucide-react";
 import { IngestionProgressModal } from "~/components/ingestion-progress-modal";
 import { Button } from "~/components/ui/button";
@@ -178,9 +183,37 @@ export async function action({ request, params }: ActionFunctionArgs) {
   return json({ success: false });
 }
 
+export function isActive({
+  matches,
+  path,
+  repoId,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  matches: any;
+  path: string;
+  repoId: string;
+}) {
+  if (!repoId) {
+    return false;
+  }
+
+  return (
+    matches
+      .filter(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (match: any) => match.handle && match.handle.PATH
+      )
+      .filter(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (match: any) => match.handle.PATH(repoId) === path
+      ).length > 0
+  );
+}
+
 export default function RepoLayout() {
   const { user, repos, currentRepo, hasActiveIngestion, dag } =
     useLoaderData<typeof loader>();
+  const matches = useMatches();
 
   const fetcher = useFetcher({ key: "initializeIngestion" });
 
@@ -208,13 +241,13 @@ export default function RepoLayout() {
       <SidebarProvider>
         <div className="fixed inset-0 flex h-screen overflow-hidden">
           <Sidebar className="flex flex-col flex-shrink-0">
-            <SidebarHeader>
+            <SidebarHeader className="px-3">
               <SidebarMenu>
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton>
-                        {currentRepo.name}
+                      <SidebarMenuButton className="w-full rounded-md">
+                        <span className="px-3 py-2">{currentRepo.name}</span>
                         <ChevronDown className="ml-auto h-4 w-4" />
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
@@ -237,61 +270,77 @@ export default function RepoLayout() {
               </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
+            <SidebarContent className="px-3">
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton
+                    asChild
+                    className="w-full rounded-md"
+                    isActive={isActive({
+                      matches,
+                      path: `/repos/${currentRepo.id}/logs`,
+                      repoId: currentRepo.id,
+                    })}
+                  >
                     <Link
                       prefetch="intent"
                       to={`/repos/${currentRepo.id}/logs`}
+                      className="px-3 py-2"
                     >
                       <List className="h-4 w-4 mr-2" />
-                      Logs
+                      <span>Logs</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton
+                    asChild
+                    className="w-full rounded-md"
+                    isActive={isActive({
+                      matches,
+                      path: `/repos/${currentRepo.id}/design`,
+                      repoId: currentRepo.id,
+                    })}
+                  >
                     <Link
                       prefetch="intent"
                       to={`/repos/${currentRepo.id}/design`}
+                      className="px-3 py-2"
                     >
                       <LayoutDashboard className="h-4 w-4 mr-2" />
-                      Design
+                      <span>Design</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton
+                    asChild
+                    className="w-full rounded-md"
+                    isActive={isActive({
+                      matches,
+                      path: `/repos/${currentRepo.id}/chat`,
+                      repoId: currentRepo.id,
+                    })}
+                  >
                     <Link
                       prefetch="intent"
                       to={`/repos/${currentRepo.id}/chat`}
+                      className="px-3 py-2"
                     >
                       <MessageCircle className="h-4 w-4 mr-2" />
-                      Chat
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link
-                      prefetch="intent"
-                      to={`/repos/${currentRepo.id}/settings`}
-                    >
-                      <Settings className="h-4 w-4 mr-2" />
-                      Settings
+                      <span>Chat</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarContent>
 
-            <SidebarFooter>
+            <SidebarFooter className="px-3">
               <SidebarMenu>
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton>
+                      <SidebarMenuButton className="w-full rounded-md">
                         <img
                           src={user.avatarUrl}
                           alt={user.displayName}
