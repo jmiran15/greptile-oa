@@ -1,14 +1,25 @@
 // customize a changelog page
 
+import {
+  UploadHandler,
+  json,
+  unstable_composeUploadHandlers,
+  unstable_createMemoryUploadHandler,
+  unstable_parseMultipartFormData,
+  type ActionFunctionArgs,
+  type LoaderFunctionArgs,
+} from "@remix-run/node";
+import { Link, useFetcher, useLoaderData } from "@remix-run/react";
+import { ExternalLink, Monitor, Smartphone } from "lucide-react";
 import { useState } from "react";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
+import { Button } from "~/components/ui/button";
+import { prisma } from "~/db.server";
 import { cn } from "~/lib/utils";
+import { uploadImage } from "~/utils/cloudinary.server";
 import ChangelogPreview from "../$repoId.logs._index/preview";
+import { ThemeForm } from "./theme-form";
 
 type PreviewDevice = "desktop" | "mobile";
-
-import { Monitor, Smartphone } from "lucide-react";
 
 interface DeviceSwitcherProps {
   device: "desktop" | "mobile";
@@ -16,46 +27,170 @@ interface DeviceSwitcherProps {
   className?: string;
 }
 
+export async function loader({ params }: LoaderFunctionArgs) {
+  const { repoId } = params;
+  if (!repoId) throw new Error("repoId is required");
+
+  const repo = await prisma.repo.findUnique({
+    where: { id: repoId },
+  });
+
+  if (!repo) throw new Error("Repo not found");
+
+  return json({ repo });
+}
+
+export const action = async ({ request, params }: ActionFunctionArgs) => {
+  const { repoId } = params;
+  if (!repoId) throw new Error("No repoId provided");
+
+  const uploadHandler: UploadHandler = unstable_composeUploadHandlers(
+    async ({ name, data }) => {
+      if (name !== "originalLogoFile" && name !== "croppedLogoFile") {
+        return undefined;
+      }
+
+      const uploadedImage = await uploadImage(data);
+      return uploadedImage.secure_url;
+    },
+    unstable_createMemoryUploadHandler()
+  );
+
+  const formData = await unstable_parseMultipartFormData(
+    request,
+    uploadHandler
+  );
+  const intent = String(formData.get("intent"));
+
+  switch (intent) {
+    case "themeUpdate": {
+      const updateData = JSON.parse(String(formData.get("update")));
+      return json({
+        repo: await prisma.repo.update({
+          where: { id: repoId },
+          data: updateData,
+        }),
+      });
+    }
+    case "logoImageUpdate": {
+      const originalLogoFilepath = formData.get("originalLogoFile")
+        ? String(formData.get("originalLogoFile"))
+        : undefined;
+      const orig = originalLogoFilepath ? { originalLogoFilepath } : {};
+      const croppedLogoFilepath = String(formData.get("croppedLogoFile"));
+      const lastCrop = JSON.parse(String(formData.get("lastCrop")));
+
+      if (!croppedLogoFilepath || !lastCrop) {
+        throw new Error("Invalid image update");
+      }
+
+      return json({
+        repo: await prisma.repo.update({
+          where: { id: repoId },
+          data: {
+            croppedLogoFilepath,
+            lastCrop,
+            ...orig,
+          },
+        }),
+      });
+    }
+    case "removeLogoImage": {
+      return json({
+        repo: await prisma.repo.update({
+          where: { id: repoId },
+          data: {
+            originalLogoFilepath: null,
+            croppedLogoFilepath: null,
+            lastCrop: null,
+          },
+        }),
+      });
+    }
+    default:
+      throw new Error("Invalid intent");
+  }
+};
+
 export default function RepoDesign() {
+  const { repo } = useLoaderData<typeof loader>();
   const [device, setDevice] = useState<PreviewDevice>("desktop");
+  const fetcher = useFetcher();
+
+  const optimisticRepo = fetcher.formData
+    ? {
+        ...repo,
+        ...(fetcher.formData.get("intent") === "themeUpdate"
+          ? JSON.parse(String(fetcher.formData.get("update")))
+          : fetcher.formData.get("intent") === "logoImageUpdate"
+          ? {
+              croppedLogoFilepath: String(
+                fetcher.formData.get("optimisticPath")
+              ),
+            }
+          : fetcher.formData.get("intent") === "removeLogoImage"
+          ? {
+              originalLogoFilepath: null,
+              croppedLogoFilepath: null,
+              lastCrop: null,
+            }
+          : {}),
+      }
+    : repo;
 
   return (
-    <div className="h-[100vh] grid grid-cols-1 md:grid-cols-2 gap-6 p-6 overflow-hidden">
+    <div className="mx-auto px-4 py-8 max-w-5xl h-[100vh] grid grid-cols-1 md:grid-cols-10 gap-6 p-6 overflow-hidden container">
       {/* Left Column - Form */}
-      <div className="space-y-4 overflow-y-auto">
-        <div className="space-y-2">
-          <Label htmlFor="test-input">Test Input</Label>
-          <Input id="test-input" placeholder="Enter test value..." />
-        </div>
+      <div className="space-y-4 no-scrollbar overflow-y-auto col-span-3">
+        <ThemeForm repo={optimisticRepo} fetcher={fetcher} />
       </div>
 
       {/* Right Column - Preview */}
-      <div className="relative flex items-center justify-center overflow-hidden">
-        {/* Device Switcher */}
-        <div className="absolute top-0 right-0 z-10 m-4">
-          <DeviceSwitcher
-            device={device}
-            onChange={setDevice}
-            className="backdrop-blur-sm bg-background/80"
-          />
-        </div>
+      <div className="col-span-7 flex flex-col h-full">
+        <div className="bg-gray-50 rounded-xl flex flex-col h-full p-6">
+          {/* Preview Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-medium text-gray-900">Preview</h2>
 
-        <div
-          className={cn(
-            "bg-background border rounded-lg shadow-lg overflow-hidden transition-all duration-300",
-            {
-              "w-[1200px] h-[800px] scale-[0.7]": device === "desktop",
-              "w-[390px] h-[844px] scale-[0.7]": device === "mobile",
-            }
-          )}
-        >
-          <div
-            className={cn(
-              "w-full h-full overflow-y-auto",
-              device === "mobile" && "xs"
-            )}
-          >
-            <ChangelogPreview isMobile={device === "mobile"} />
+            <div className="flex items-center gap-3">
+              <DeviceSwitcher
+                device={device}
+                onChange={setDevice}
+                className="bg-white"
+              />
+
+              <Button variant="outline" asChild>
+                <Link to={`/${repo.id}/logs`} target="_blank" className="gap-2">
+                  View public page
+                  <ExternalLink className="mr-2 h-4 w-4" />{" "}
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          {/* Preview Content */}
+          <div className="flex-1 relative">
+            <div
+              className={cn(
+                "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border rounded-lg shadow-lg overflow-hidden origin-center",
+                {
+                  "w-[1200px] h-[800px] scale-[0.45]": device === "desktop",
+                  "w-[390px] h-[844px] scale-[0.55]": device === "mobile",
+                }
+              )}
+            >
+              <div
+                className={cn(
+                  "w-full h-full overflow-y-auto no-scrollbar",
+                  device === "mobile" && "xs"
+                )}
+              >
+                <ChangelogPreview
+                  isMobile={device === "mobile"}
+                  repo={optimisticRepo}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -70,35 +205,30 @@ export function DeviceSwitcher({
 }: DeviceSwitcherProps) {
   return (
     <div
-      className={cn(
-        "inline-flex items-center bg-background border rounded-full p-1 shadow-sm",
-        className
-      )}
+      className={cn("flex items-center rounded-md border shadow-sm", className)}
     >
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => onChange("desktop")}
         className={cn(
-          "inline-flex items-center justify-center h-8 w-8 rounded-full transition-all",
-          "hover:bg-accent/50",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          device === "desktop" && "bg-accent shadow-sm"
+          "px-3 rounded-none",
+          device === "desktop" && "bg-gray-100"
         )}
-        aria-label="Switch to desktop view"
       >
         <Monitor className="h-4 w-4" />
-      </button>
-      <button
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => onChange("mobile")}
         className={cn(
-          "inline-flex items-center justify-center h-8 w-8 rounded-full transition-all",
-          "hover:bg-accent/50",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-          device === "mobile" && "bg-accent shadow-sm"
+          "px-3 rounded-none",
+          device === "mobile" && "bg-gray-100"
         )}
-        aria-label="Switch to mobile view"
       >
         <Smartphone className="h-4 w-4" />
-      </button>
+      </Button>
     </div>
   );
 }

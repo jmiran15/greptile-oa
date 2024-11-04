@@ -1,45 +1,20 @@
 // chat with repo - for debugging
 
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import {
-  Form,
-  useActionData,
-  useLoaderData,
-  useNavigation,
-} from "@remix-run/react";
+import { Form, useActionData, useNavigation } from "@remix-run/react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
-import { prisma } from "~/db.server";
 import { chat } from "~/utils/openai";
 
-export async function loader() {
-  const repos = await prisma.repo.findMany({
-    orderBy: {
-      createdAt: "desc",
-    },
-    select: {
-      id: true,
-      repoUrl: true,
-    },
-  });
-
-  return json({ repos });
-}
-
-export async function action({ request }: LoaderFunctionArgs) {
+export async function action({ request, params }: LoaderFunctionArgs) {
   const formData = await request.formData();
-  const repoId = String(formData.get("repoId"));
-  const query = String(formData.get("query"));
+  const { repoId } = params;
 
-  console.log("Repo ID:", repoId);
-  console.log("Query:", query);
+  if (!repoId) {
+    throw new Error("Repo ID is required");
+  }
+
+  const query = String(formData.get("query"));
 
   if (!repoId || !query) {
     throw new Error("Repo ID and query are required");
@@ -52,31 +27,12 @@ export async function action({ request }: LoaderFunctionArgs) {
 }
 
 export default function Chat() {
-  const { repos } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen w-full max-w-6xl mx-auto container py-8">
       <Form method="post" className="flex flex-col gap-4 w-full">
-        <div className="flex flex-col gap-2">
-          <label htmlFor="repo-select" className="text-sm font-medium">
-            Select Repository
-          </label>
-          <Select name="repoId">
-            <SelectTrigger id="repo-select">
-              <SelectValue placeholder="Select a repository" />
-            </SelectTrigger>
-            <SelectContent>
-              {repos.map((repo) => (
-                <SelectItem key={repo.id} value={repo.id}>
-                  {repo.repoUrl}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
         <div className="flex flex-col gap-2">
           <label htmlFor="query" className="text-sm font-medium">
             Your Question

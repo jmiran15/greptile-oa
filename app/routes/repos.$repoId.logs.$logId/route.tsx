@@ -12,7 +12,7 @@ import {
   useLoaderData,
   useNavigation,
 } from "@remix-run/react";
-import { ArrowLeft, ExternalLink, GitMerge } from "lucide-react";
+import { ArrowLeft, ExternalLink, GitMerge, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { BlockerDialog } from "~/components/blocker-dialog";
@@ -33,8 +33,13 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Separator } from "~/components/ui/separator";
+import { Skeleton } from "~/components/ui/skeleton";
 import { prisma } from "~/db.server";
 import { useBlocker } from "~/hooks/use-blocker";
+import {
+  getStatusDisplay,
+  useChangelogProgress,
+} from "~/hooks/use-changelog-progress";
 import { useToast } from "~/hooks/use-toast";
 
 const UpdateLogSchema = z.object({
@@ -102,7 +107,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
       await prisma.log.update({
         where: { id: logId },
-        data: { status: "published" },
+        data: {
+          status: "published",
+          publishedDate: new Date(),
+        },
       });
 
       return json({ success: true });
@@ -145,6 +153,29 @@ export default function EditLog() {
   // Block navigation if there are unsaved changes
   const blocker = useBlocker(isEdited);
   const { toast } = useToast();
+
+  const progress = useChangelogProgress(log.id);
+
+  const isGenerating =
+    progress?.progress.status && progress.progress.status !== "completed";
+  const hasError = progress?.progress.status === "error";
+
+  const renderProgressBadge = () => {
+    if (!progress?.progress.status) return null;
+
+    return (
+      <div className="mb-8 p-4 rounded-lg border bg-muted">
+        <div className="flex items-center gap-2">
+          {progress.progress.status !== "completed" && (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          )}
+          <span className="text-sm font-medium">
+            {getStatusDisplay(progress.progress.status)}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (blocker.state === "blocked") {
@@ -216,7 +247,10 @@ export default function EditLog() {
         <div className="flex items-center gap-2">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={isLoading}>
+              <Button
+                variant="destructive"
+                disabled={isLoading || (isGenerating && !hasError)}
+              >
                 Archive
               </Button>
             </AlertDialogTrigger>
@@ -235,7 +269,7 @@ export default function EditLog() {
                   <Button
                     variant="destructive"
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || (isGenerating && !hasError)}
                   >
                     {isLoading ? "Archiving..." : "Archive"}
                   </Button>
@@ -253,7 +287,7 @@ export default function EditLog() {
             <Button
               type="submit"
               variant="outline"
-              disabled={isLoading || !log.content}
+              disabled={isLoading || isGenerating || !log.content}
             >
               {isLoading
                 ? "Loading..."
@@ -266,7 +300,7 @@ export default function EditLog() {
           <Button
             type="submit"
             form="edit-form"
-            disabled={!isEdited || isLoading}
+            disabled={!isEdited || isLoading || isGenerating}
           >
             {isLoading ? "Saving..." : "Save changes"}
           </Button>
@@ -274,6 +308,8 @@ export default function EditLog() {
       </div>
 
       <Separator className="mb-8" />
+
+      {renderProgressBadge()}
 
       {log.prNumber && (
         <div className="mb-8 p-4 rounded-lg border bg-muted">
@@ -334,14 +370,23 @@ export default function EditLog() {
 
         <div className="space-y-4">
           <Label htmlFor="content">Content</Label>
-          <AutoGrowTextarea
-            id="content"
-            name="content"
-            value={formData.content}
-            onChange={handleChange}
-            error={actionData?.errors?.content?.[0]}
-            placeholder="Write your content here..."
-          />
+          {isGenerating ? (
+            <div className="space-y-2">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+          ) : (
+            <AutoGrowTextarea
+              id="content"
+              name="content"
+              value={formData.content}
+              onChange={handleChange}
+              error={actionData?.errors?.content?.[0]}
+              placeholder="Write your content here..."
+              disabled={isGenerating}
+            />
+          )}
           {actionData?.errors?.content && (
             <p className="text-sm text-destructive">
               {actionData.errors.content[0]}

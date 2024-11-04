@@ -1,9 +1,13 @@
 // TODO - filter out any empty files and empty dirs (i.e. size 0 files)
 
+import invariant from "tiny-invariant";
 import { z } from "zod";
 import { prisma } from "~/db.server";
-import { pruneRepoTree, PruneResultSchema } from "~/prompts/pruneRepoTree";
-import { octokit } from "~/utils/providers.server";
+import {
+  pruneRepoTree,
+  PruneResultSchema,
+} from "~/prompts/ingestion/pruneRepoTree.server";
+import { createGitHubClient } from "~/utils/providers.server";
 import { Queue } from "~/utils/queue.server";
 import {
   GitHubTreeResponse,
@@ -11,7 +15,6 @@ import {
   preFilterGithubTree,
   TreeItem,
 } from "~/utils/treeProcessing.server";
-import { ingestQueue } from "./ingest.server";
 
 interface PruneTreesResult {
   githubTree: GitHubTreeResponse;
@@ -23,7 +26,8 @@ interface PruneTreesResult {
 }
 
 export interface QueueData {
-  repoUrl: string;
+  repoId: string;
+  githubAccessToken: string;
 }
 
 export const pruningQueue = Queue<QueueData>(
@@ -35,48 +39,58 @@ export const pruningQueue = Queue<QueueData>(
     repo: GitHubTreeResponse;
     markdownTree: string;
   }> => {
-    // 1. lets save the repo in the db, and set isPending to true
-    // 2. lets fetch the repo structure (tree) -> return the output
-    // 3. lets get a repo structure, turn it into human readable tree, give to openai, return the "items to prune" - return pruned tree (in the same format as the input)
-    // 4. begin ingestion process on the pruned tree
+    const repo = await prisma.repo.findUniqueOrThrow({
+      where: {
+        id: job.data.repoId,
+      },
+      select: {
+        id: true,
+        name: true,
+        owner: true,
+        defaultBranch: true,
+      },
+    });
 
-    // extract owner and repo from the url using regex
-    const regex = /https:\/\/github\.com\/([^/]+)\/([^/]+)/;
-    const match = job.data.repoUrl.match(regex);
-    const owner = match![1];
-    const repo = match![2];
+    // initialize octokit
+    const octokit = createGitHubClient(job.data.githubAccessToken);
+
+    // Get all repositories the user has access to
+    // const { data: repos } = await github.rest.repos.listForAuthenticatedUser({
+    //   sort: "updated",
+    //   per_page: 100,
+    //   visibility: "all",
+    // });
 
     const { data: repoData } = await octokit.request(
       "GET /repos/{owner}/{repo}",
       {
-        owner,
-        repo,
+        owner: repo.owner,
+        repo: repo.name,
       }
     );
 
     const defaultBranch = repoData.default_branch;
 
-    const createdRepo = await prisma.repo.create({
-      data: {
-        repoUrl: job.data.repoUrl,
-        isPending: true,
-        owner,
-        repo,
-        defaultBranch,
-      },
-    });
+    invariant(
+      defaultBranch === repo.defaultBranch,
+      "Default branch should match the one in the db"
+    );
 
     const { data: treeData } = await octokit.request(
       "GET /repos/{owner}/{repo}/git/trees/{tree_sha}",
       {
-        owner,
-        repo,
+        owner: repo.owner,
+        repo: repo.name,
         tree_sha: defaultBranch,
         recursive: "1",
       }
     );
 
-    const filteredTree = preFilterGithubTree(treeData.tree, {
+    if (!treeData.tree) {
+      throw new Error("No tree data found");
+    }
+
+    const filteredTree = preFilterGithubTree(treeData.tree as TreeItem[], {
       maxFileSize: 1024 * 1024,
       includeDotFiles: false,
       includeTests: true,
@@ -87,22 +101,16 @@ export const pruningQueue = Queue<QueueData>(
       tree: filteredTree,
     });
 
-    console.log("markdownTree\n", markdownTree);
-
-    console.log("calling llm");
-
-    console.time("pruning with llm");
+    // prune with llm as well
     // TODO - this should go out to a queue
     const toPrune: z.infer<typeof PruneResultSchema> | null =
       await pruneRepoTree({
         markdownTree,
       });
 
-    console.timeEnd("pruning with llm");
-
     if (!toPrune) {
       return {
-        repoId: createdRepo.id,
+        repoId: repo.id,
         repo: {
           ...treeData,
           tree: filteredTree,
@@ -116,29 +124,20 @@ export const pruningQueue = Queue<QueueData>(
       toPrune,
     });
 
-    // Log pruning results for monitoring
-    console.log("Pruning results:", {
-      successfulPrunes: prunedResults.appliedPruning.successful.length,
-      failedPrunes: prunedResults.appliedPruning.failed.length,
-    });
-
-    console.log("final markdown tree: ", prunedResults.markdownTree);
-
-    // TODO - this will be in a flow once we figure out types
-    const createDAG = await ingestQueue.add(createdRepo.id, {
-      repoId: createdRepo.id,
-      tree: prunedResults.githubTree,
-    });
-    console.log("createDAG", createDAG);
+    // console.log("Pruning results:", {
+    //   successfulPrunes: prunedResults.appliedPruning.successful.length,
+    //   failedPrunes: prunedResults.appliedPruning.failed.length,
+    // });
 
     return {
-      repoId: createdRepo.id,
+      repoId: repo.id,
       repo: prunedResults.githubTree,
       markdownTree: prunedResults.markdownTree,
     };
   }
 );
 
+// TODO - move this to util
 export function pruneTreesFromAISuggestions({
   repo,
   toPrune,

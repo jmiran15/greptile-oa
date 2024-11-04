@@ -64,8 +64,11 @@ export const action: ActionFunction = async ({ request }) => {
     const [owner, repo] = repoFullName.toString().split("/");
     const { data } = await github.rest.repos.get({ owner, repo });
 
+    console.log(JSON.stringify(data, null, 2));
+
     return {
       name: data.name,
+      owner: data.owner.login,
       fullName: data.full_name,
       description: data.description,
       defaultBranch: data.default_branch,

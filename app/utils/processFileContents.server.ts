@@ -1,5 +1,6 @@
-import { octokit } from "~/utils/providers.server";
+// import { octokit } from "~/utils/providers.server";
 import { Chunk, RepoNodeWithRepo } from "../queues/ingestion/ingestFile.server";
+import { createGitHubClient } from "./providers.server";
 
 export function normalizeContentWithLineMap(content: string): {
   normalizedContent: string;
@@ -60,20 +61,24 @@ export async function splitRepoNodeIntoChunks({
   node,
   chunkSize,
   overlap,
+  githubAccessToken,
 }: {
   node: RepoNodeWithRepo;
   chunkSize: number;
   overlap: number;
+  githubAccessToken: string;
 }): Promise<{
   nodeContent: string;
   chunks: Chunk[];
 } | null> {
   try {
+    const octokit = createGitHubClient(githubAccessToken);
+
     const { data: blobData } = await octokit.request(
       "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
       {
         owner: node.repo.owner,
-        repo: node.repo.repo,
+        repo: node.repo.name,
         file_sha: node.sha,
       }
     );
@@ -90,8 +95,22 @@ export async function splitRepoNodeIntoChunks({
 
     const chunks: Chunk[] = [];
     const lines = normalizedContent.split("\n");
-    let currentPosition = 0; // line number
 
+    // Add check for small files
+    if (normalizedContent.length <= chunkSize) {
+      chunks.push({
+        content: normalizedContent,
+        startLine: 1,
+        endLine: lines.length,
+        repoNodeId: node.id,
+      });
+      return {
+        nodeContent: decodedContent,
+        chunks,
+      };
+    }
+
+    let currentPosition = 0;
     const overlapLines = Math.ceil(overlap / 80);
 
     while (currentPosition < lines.length) {
@@ -128,7 +147,8 @@ export async function splitRepoNodeIntoChunks({
         .slice(currentPosition, breakPoint + 1)
         .join("\n");
 
-      if (chunkContent.trim()) {
+      // Only add chunk if it's substantial (not just a few lines) and not empty
+      if (chunkContent.trim() && chunkContent.split("\n").length > 3) {
         chunks.push({
           content: chunkContent,
           startLine: currentPosition + 1,
@@ -137,54 +157,8 @@ export async function splitRepoNodeIntoChunks({
         });
       }
 
-      currentPosition = Math.max(
-        currentPosition + 1,
-        breakPoint - overlapLines
-      );
-    }
-
-    // Improve chunk boundary adjustment with empty content check
-    for (let i = 1; i < chunks.length; i++) {
-      const currentChunk = chunks[i];
-
-      const overlapLines = lines.slice(
-        currentChunk.startLine - 1,
-        currentChunk.startLine + 5
-      );
-
-      let adjustedStart = currentChunk.startLine;
-      for (let j = 0; j < overlapLines.length; j++) {
-        const line = overlapLines[j].trim();
-        if (
-          line.startsWith("function ") ||
-          line.startsWith("class ") ||
-          line.startsWith("interface ") ||
-          line.startsWith("type ") ||
-          line.startsWith("const ") ||
-          line === "{" ||
-          line === ""
-        ) {
-          adjustedStart = currentChunk.startLine + j;
-          break;
-        }
-      }
-
-      const newContent = lines
-        .slice(adjustedStart - 1, chunks[i].endLine)
-        .join("\n");
-      // Only update the chunk if the new content isn't empty
-      if (newContent.trim()) {
-        chunks[i] = {
-          content: newContent,
-          startLine: adjustedStart,
-          endLine: chunks[i].endLine,
-          repoNodeId: node.id,
-        };
-      } else {
-        // Remove the chunk if it becomes empty after adjustment
-        chunks.splice(i, 1);
-        i--; // Adjust the index since we removed an element
-      }
+      // Modify the position advancement to prevent tiny chunks
+      currentPosition = breakPoint + 1;
     }
 
     return {

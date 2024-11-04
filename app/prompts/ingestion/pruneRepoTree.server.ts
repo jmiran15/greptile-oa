@@ -1,7 +1,6 @@
-import { zodResponseFormat } from "openai/helpers/zod.mjs";
 import { ChatCompletionMessageParam } from "openai/resources/index.mjs";
 import { z } from "zod";
-import { openai } from "~/utils/providers.server";
+import { createCompletion } from "~/utils/generateStructuredOutput.server";
 
 const MODEL = "gpt-4o-mini";
 
@@ -59,45 +58,22 @@ const pruneRepoTreeUserPrompt = ({ tree }: { tree: string }) =>
     ],
   } as ChatCompletionMessageParam);
 
+const config = {
+  model: MODEL,
+  systemPrompt: pruneRepoTreeSystemPrompt,
+  createUserPrompt: ({ tree }: { tree: string }) =>
+    pruneRepoTreeUserPrompt({ tree }),
+  schema: PruneResultSchema,
+  responseFormatKey: "pruning",
+} as const;
+
 export async function pruneRepoTree({
   markdownTree,
 }: {
   markdownTree: string;
 }): Promise<z.infer<typeof PruneResultSchema> | null> {
-  try {
-    const completion = await openai.beta.chat.completions.parse(
-      {
-        model: MODEL,
-        messages: [
-          pruneRepoTreeSystemPrompt,
-          pruneRepoTreeUserPrompt({ tree: markdownTree }),
-        ],
-        response_format: zodResponseFormat(PruneResultSchema, "pruning"),
-        temperature: 0,
-        max_tokens: 4096,
-      },
-      {
-        headers: {
-          "Helicone-Property-Environment": process.env.NODE_ENV,
-        },
-      }
-    );
-
-    const result = completion.choices[0].message;
-
-    if (result.parsed) {
-      return result.parsed;
-    } else if (result.refusal) {
-      return null;
-    }
-  } catch (e) {
-    if ((e as Error).constructor.name == "LengthFinishReasonError") {
-      // Retry with a higher max tokens
-      console.log("Too many tokens: ", (e as Error).message);
-    } else {
-      // Handle other exceptions
-      console.log("An error occurred: ", (e as Error).message);
-    }
-  }
-  return null;
+  return createCompletion({
+    input: { tree: markdownTree },
+    config,
+  });
 }

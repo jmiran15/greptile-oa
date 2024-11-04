@@ -1,13 +1,5 @@
-import { cn } from "~/lib/utils";
 import Changes from "./changes";
 import ChangelogHeader from "./header";
-
-const DUMMY_REPO = {
-  name: "Amazing App",
-  logo: "https://placeholder.co/400",
-  website: "https://example.com",
-  description: "The most amazing app you've ever seen",
-};
 
 const DUMMY_LOGS = [
   {
@@ -121,22 +113,30 @@ const DUMMY_LOGS = [
 
 interface ChangelogPreviewProps {
   isMobile?: boolean;
+  repo: {
+    themeHeaderBg: string;
+    croppedLogoFilepath: string | null;
+    themeHeading: string;
+    themeDescription: string;
+    themeLinkText: string;
+    themeLinkPath: string;
+  };
 }
 
-export default function ChangelogPreview({ isMobile }: ChangelogPreviewProps) {
+export default function ChangelogPreview({
+  isMobile,
+  repo,
+}: ChangelogPreviewProps) {
   return (
-    <div
-      className={cn("bg-background flex flex-col gap-10", {
-        "max-w-[390px]": isMobile,
-        "max-w-[1200px]": !isMobile,
-      })}
-    >
+    <div className="bg-background flex flex-col gap-10">
       <ChangelogHeader
-        logoPath={DUMMY_REPO.logo}
-        logoAlt={`${DUMMY_REPO.name} logo`}
-        title={DUMMY_REPO.name}
-        description={DUMMY_REPO.description}
-        path={DUMMY_REPO.website}
+        logoPath={repo.croppedLogoFilepath || ""}
+        logoAlt={`${repo.themeHeading} logo`}
+        title={repo.themeHeading}
+        description={repo.themeDescription}
+        path={repo.themeLinkPath}
+        linkText={repo.themeLinkText}
+        headerBg={repo.themeHeaderBg}
         isMobile={isMobile}
       />
 

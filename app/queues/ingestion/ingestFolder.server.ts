@@ -1,8 +1,13 @@
+// TODO - update progress to include a status
+
 import { prisma } from "~/db.server";
 import { Queue } from "~/utils/queue.server";
 import { folderPossibleQuestions } from "../../prompts/ingestion/folder/possibleQuestions.server";
 import { folderSummary } from "../../prompts/ingestion/folder/summary.server";
-import { batchProcessEmbeddings, fileIngestQueue } from "./ingestFile.server";
+import {
+  batchProcessEmbeddings,
+  updateRepoNodeStatus,
+} from "./ingestFile.server";
 
 interface IngestFolderData {
   nodeId: string;
@@ -13,29 +18,33 @@ interface IngestFolderData {
 export const folderIngestQueue = Queue<IngestFolderData>(
   "folderIngest",
   async (job) => {
-    // do all the stuff ...
-    // get all of it's children summaries
-
     const node = await prisma.repoNode.findUnique({
-      where: { id: job.data.nodeId },
+      where: {
+        repoId_path: {
+          repoId: job.data.repoId,
+          path: job.data.path,
+        },
+      },
       include: { children: true, repo: true },
     });
 
     if (!node) {
-      return;
+      await updateRepoNodeStatus(job.data.nodeId, "completed");
+      return await job.moveToCompleted(null, "Node not found");
     }
 
-    if (node.children.some((child) => child.status !== "completed")) {
+    if (node.children.some((child) => !child.upstreamSummary)) {
       return;
     }
 
     if (node.children.length === 0) {
+      await updateRepoNodeStatus(node.id, "completed");
       return await checkAndTriggerParent(node.id);
     }
 
     if (node.children.length === 1) {
       // special case - just pass up the summary of the child
-      const updatedFolderNode = await prisma.repoNode.update({
+      await prisma.repoNode.update({
         where: { id: node.id },
         data: {
           upstreamSummary: node.children[0].upstreamSummary,
@@ -46,8 +55,19 @@ export const folderIngestQueue = Queue<IngestFolderData>(
       return await checkAndTriggerParent(node.id);
     }
 
-    // based on all of those summaries, create a new summary for the folder
+    // pending
+    // processing
+    // summarizing
+    // embedding
+    // completed
+    // failed
 
+    await updateRepoNodeStatus(node.id, "processing");
+    await job.updateProgress({
+      status: "processing",
+    });
+
+    // based on all of those summaries, create a new summary for the folder
     // if more than 10 children, select 10 at random
     const validChildren = node.children.filter(
       (child) => child.upstreamSummary
@@ -70,16 +90,18 @@ export const folderIngestQueue = Queue<IngestFolderData>(
       )
       .join("\n\n");
 
+    await updateRepoNodeStatus(node.id, "summarizing");
+    await job.updateProgress({
+      status: "summarizing",
+    });
+
     const summary = await folderSummary({
       folderPath: node.path,
       childrenLength: node.children.length,
       childrenSummaries,
     });
 
-    console.log("generated summary for parent node: ", summary);
-
     // also based on all of these summaries, create possible questions for this folder
-
     const questions = await folderPossibleQuestions({
       folderPath: node.path,
       childrenLength: node.children.length,
@@ -89,10 +111,11 @@ export const folderIngestQueue = Queue<IngestFolderData>(
     const assumedContent = summary?.summary ?? node.path;
 
     // save the summary  (we will also do downstream pass here)
+    await updateRepoNodeStatus(node.id, "embedding");
+    await job.updateProgress({
+      status: "embedding",
+    });
 
-    // embed
-
-    // TODO - embed this stuff!
     await batchProcessEmbeddings(
       [
         ...(summary
@@ -131,20 +154,31 @@ export const folderIngestQueue = Queue<IngestFolderData>(
       node
     );
 
-    // TODO - add the file summary to the node.summary in the db
-    const updatedRepoNode = await prisma.repoNode.update({
-      where: {
-        id: node.id,
-      },
-      data: {
-        upstreamSummary: summary?.summary,
-        status: "completed",
-      },
+    await prisma.$transaction([
+      prisma.repoNode.update({
+        where: {
+          id: node.id,
+        },
+        data: {
+          upstreamSummary: summary?.summary,
+          status: "completed",
+        },
+      }),
+      prisma.repo.update({
+        where: { id: node.repoId },
+        data: { ingested: true },
+      }),
+    ]);
+
+    // use this to redirect immediately after completion
+    await job.updateProgress({
+      finishedIngestion: true,
     });
 
     // Check if parent is ready to process
-    await checkAndTriggerParent(node.id);
+    return await checkAndTriggerParent(node.id);
 
+    // TODO - implement the downstream pass
     // one of these will be the root.
     // once we get to it - at the end, we need to initiated the downstream pass
 
@@ -182,24 +216,31 @@ export async function checkAndTriggerParent(nodeId: string) {
     include: { parent: { include: { children: true } } },
   });
 
+  console.log("node parent", node?.parent);
+
   if (!node?.parent) return;
 
-  const allChildrenCompleted = node.parent.children.every(
-    (child) => child.status === "completed"
+  // const allChildrenCompleted = node.parent.children.every(
+  //   (child) => child.status === "completed"
+  // );
+
+  // since we are calling before the children are completed, we need to check if they have a summary
+  const allChildrenHaveSummary = node.parent.children.every(
+    (child) => child.upstreamSummary
   );
 
-  if (allChildrenCompleted) {
+  if (allChildrenHaveSummary) {
     const queueData = {
       nodeId: node.parent.id,
       repoId: node.parent.repoId,
       path: node.parent.path,
     };
 
-    // TODO - should never hit - files don't have files
-    if (node.parent.type === "file") {
-      await fileIngestQueue.add(`file-${node.parent.id}`, queueData);
-    } else {
-      await folderIngestQueue.add(`folder-${node.parent.id}`, queueData);
+    // assert that the parent is a folder
+    if (node.parent.type !== "folder") {
+      throw new Error("Parent is not a folder");
     }
+
+    await folderIngestQueue.add(`folder-${node.parent.id}`, queueData);
   }
 }

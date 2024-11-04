@@ -1,5 +1,7 @@
+// TODO - update progress to include a status
+
 import { createId } from "@paralleldrive/cuid2";
-import { Prisma } from "@prisma/client";
+import { Prisma, Status } from "@prisma/client";
 import { prisma } from "~/db.server";
 import { openai } from "~/utils/providers.server";
 import { Queue } from "~/utils/queue.server";
@@ -15,6 +17,7 @@ interface IngestFileData {
   nodeId: string;
   repoId: string;
   path: string;
+  githubAccessToken: string;
 }
 
 interface EmbeddingsToCreate {
@@ -23,23 +26,6 @@ interface EmbeddingsToCreate {
   repoId: string;
   nodeId: string;
 }
-
-// maybe
-// 1. generate a summary of the file contents
-// if too long, split and generate summary of the top part
-// 2. do the same thing for possible questions for the entire file
-// + embed
-// + save the summary in the node's row
-
-// check if parent is ready to process (since we already have the summary of the file)
-
-// then split into chunks
-// create summary and questions for each chunk + embed
-
-// if we had to split up the file, don't use the original files summary
-// put all the chunk summaries in order, and create a new summary based on those summaries
-
-// include line numbers in everything
 
 export interface Chunk {
   // id: string;
@@ -54,35 +40,50 @@ export type RepoNodeWithRepo = Prisma.RepoNodeGetPayload<{
     repo: {
       select: {
         owner: true;
-        repo: true;
+        name: true;
       };
     };
   };
 }>;
 
-const CHUNK_SIZE = 2048;
+const CHUNK_SIZE = 2048 * 2;
 const OVERLAP = 256;
 const BATCH_SIZE = 100;
+
+export function updateRepoNodeStatus(nodeId: string, status: Status) {
+  return prisma.repoNode.update({
+    where: { id: nodeId },
+    data: { status },
+  });
+}
 
 export const fileIngestQueue = Queue<IngestFileData>(
   "fileIngest",
   async (job) => {
     // get the node from the db
-
     const node = await prisma.repoNode.findUnique({
-      where: { id: job.data.nodeId },
+      where: {
+        repoId_path: {
+          repoId: job.data.repoId,
+          path: job.data.path,
+        },
+      },
       include: {
         repo: {
           select: {
             owner: true,
-            repo: true,
+            name: true,
           },
         },
       },
     });
 
     if (!node) {
-      return;
+      await updateRepoNodeStatus(job.data.nodeId, "completed");
+      await job.updateProgress({
+        status: "completed",
+      });
+      return await job.moveToCompleted(null, "Node not found");
     }
 
     try {
@@ -90,16 +91,12 @@ export const fileIngestQueue = Queue<IngestFileData>(
 
       // TODO - this is for re-indexing an existing repo
       // deleting at the file level lets us re-index the file without re-indexing the entire repo
+
       const [deleteResult, progressUpdateResult, pendingUpdateResult] =
         await Promise.allSettled([
           prisma.$executeRaw`DELETE FROM "Embedding" WHERE "nodeId" = ${node.id}`,
-          job.updateProgress(progress),
-          prisma.repoNode.update({
-            where: { id: node.id },
-            data: {
-              status: "processing",
-            },
-          }),
+          job.updateProgress({ percentage: progress, status: "processing" }),
+          updateRepoNodeStatus(node.id, "processing"),
         ]);
 
       if (deleteResult.status === "rejected") {
@@ -115,9 +112,14 @@ export const fileIngestQueue = Queue<IngestFileData>(
           node,
           chunkSize: CHUNK_SIZE,
           overlap: OVERLAP,
+          githubAccessToken: job.data.githubAccessToken,
         });
 
       if (!chunks) {
+        await updateRepoNodeStatus(node.id, "completed");
+        await job.updateProgress({
+          status: "completed",
+        });
         await prisma.repoNode.update({
           where: { id: node.id },
           data: {
@@ -128,10 +130,7 @@ export const fileIngestQueue = Queue<IngestFileData>(
         return await checkAndTriggerParent(node.id);
       }
 
-      // Get the normalized content and line mapping
-      const { normalizedContent, lineMap } = normalizeContentWithLineMap(
-        chunks.nodeContent
-      );
+      const { lineMap } = normalizeContentWithLineMap(chunks.nodeContent);
 
       const beginningOfFile = chunks.nodeContent.slice(0, CHUNK_SIZE * 2);
 
@@ -143,6 +142,11 @@ export const fileIngestQueue = Queue<IngestFileData>(
           break;
         }
       }
+
+      await updateRepoNodeStatus(node.id, "summarizing");
+      await job.updateProgress({
+        status: "summarizing",
+      });
 
       const fileSummary = await chunkSummary({
         filepath: node.path,
@@ -158,7 +162,12 @@ export const fileIngestQueue = Queue<IngestFileData>(
         code: beginningOfFile,
       });
 
-      // TODO - embed this stuff!
+      await updateRepoNodeStatus(node.id, "embedding");
+      await job.updateProgress({
+        percentage: 0,
+        status: "embedding",
+      });
+
       await batchProcessEmbeddings(
         [
           ...(fileSummary
@@ -198,8 +207,7 @@ export const fileIngestQueue = Queue<IngestFileData>(
         node
       );
 
-      // TODO - add the file summary to the node.summary in the db
-      const updatedRepoNode = await prisma.repoNode.update({
+      await prisma.repoNode.update({
         where: {
           id: node.id,
         },
@@ -208,10 +216,13 @@ export const fileIngestQueue = Queue<IngestFileData>(
         },
       });
 
-      console.log("updatedRepoNode", updatedRepoNode);
+      // trigger the parent to process here - speed things up
+      await checkAndTriggerParent(node.id);
+
+      const totalChunks = chunks.chunks.length;
+      const progressPerChunk = 100 / totalChunks;
 
       // now we do the same thing for all the chunks (in batches)
-
       for (let i = 0; i < chunks.chunks.length; i += BATCH_SIZE) {
         const batch = chunks.chunks.slice(i, i + BATCH_SIZE);
 
@@ -315,16 +326,18 @@ export const fileIngestQueue = Queue<IngestFileData>(
         }
 
         await batchProcessEmbeddings(embeddingsToCreate, node);
+
+        progress += progressPerChunk * batch.length;
+        await job.updateProgress({
+          percentage: Math.min(progress, 100),
+          status: "embedding",
+        });
       }
-      await prisma.repoNode.update({
-        where: { id: job.data.nodeId },
-        data: {
-          status: "completed",
-        },
-      });
+
+      return await updateRepoNodeStatus(node.id, "completed");
 
       // check if parent is ready to process
-      return await checkAndTriggerParent(node.id);
+      // TODO - check if we need this here? return await checkAndTriggerParent(node.id);
     } catch (error) {
       console.error("Error ingesting file:", error);
     }
@@ -335,7 +348,7 @@ export async function batchProcessEmbeddings(
   embeddingsToCreate: EmbeddingsToCreate[],
   repoNode: RepoNodeWithRepo
 ) {
-  const EMBEDDING_BATCH_SIZE = 100;
+  const EMBEDDING_BATCH_SIZE = 10;
 
   for (let i = 0; i < embeddingsToCreate.length; i += EMBEDDING_BATCH_SIZE) {
     const batch = embeddingsToCreate.slice(i, i + EMBEDDING_BATCH_SIZE);
@@ -373,7 +386,11 @@ async function insertEmbeddingsBatch(
     )}
   `;
 
-  await prisma.$executeRaw(sqlQuery);
+  try {
+    await prisma.$executeRaw(sqlQuery);
+  } catch (error) {
+    console.error("Error inserting embeddings batch:", error);
+  }
 }
 
 export async function embed({

@@ -31,6 +31,7 @@ import {
 import { Separator } from "~/components/ui/separator";
 import { Textarea } from "~/components/ui/textarea";
 import { prisma } from "~/db.server";
+import { generateChangelogQueue } from "~/queues/changelog/generateChangelog.server";
 import { createGitHubClient } from "~/utils/providers.server";
 import { getGitHubToken } from "~/utils/session.server";
 
@@ -151,6 +152,15 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       },
     });
 
+    // initiate the changelog generation
+    await generateChangelogQueue.add("generateChangelog", {
+      repoId: repoId!,
+      logId: log.id,
+      githubAccessToken: token,
+    });
+
+    // return json({ job });
+
     return redirect(`/repos/${repoId}/logs/${log.id}`);
   } else {
     // Handle scratch creation
@@ -163,6 +173,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         summary,
         publishedDate: new Date(publishDate),
         status: "draft",
+        generationStatus: "completed",
       },
     });
 

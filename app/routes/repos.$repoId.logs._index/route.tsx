@@ -1,7 +1,7 @@
 import type { Log } from "@prisma/client";
 import { json, LoaderFunctionArgs, SerializeFrom } from "@remix-run/node";
 import { Link, useLoaderData, useParams } from "@remix-run/react";
-import { Clock, ExternalLink, GitMerge, Plus } from "lucide-react";
+import { Clock, ExternalLink, GitMerge, Loader2, Plus } from "lucide-react";
 import { DateTime } from "luxon";
 import { LinkCard, LinkCardBody, LinkCardHeader } from "~/components/card";
 import Container from "~/components/container";
@@ -11,6 +11,10 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Separator } from "~/components/ui/separator";
 import { prisma } from "~/db.server";
+import {
+  getStatusDisplay,
+  useChangelogProgress,
+} from "~/hooks/use-changelog-progress";
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
   const { repoId } = params;
@@ -56,11 +60,33 @@ export default function Logs() {
 
 function LogCard({ log }: { log: SerializeFrom<Log> }) {
   const { repoId } = useParams();
+  const progress = useChangelogProgress(log.id);
 
   const statusVariants = {
-    draft: "bg-yellow-100 text-yellow-800",
+    draft: progress?.progress.status
+      ? "bg-blue-100 text-blue-800"
+      : "bg-yellow-100 text-yellow-800",
     published: "bg-green-100 text-green-800",
     archived: "bg-gray-100 text-gray-800",
+  };
+
+  const renderStatus = () => {
+    if (progress?.progress.status && progress.progress.status !== "completed") {
+      return (
+        <Badge
+          className={`${statusVariants[log.status]} flex items-center gap-1`}
+        >
+          <Loader2 className="h-3 w-3 animate-spin" />
+          {getStatusDisplay(progress.progress.status)}
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge className={statusVariants[log.status]}>
+        {log.status.charAt(0).toUpperCase() + log.status.slice(1)}
+      </Badge>
+    );
   };
 
   function getFormattedDate() {
@@ -77,18 +103,7 @@ function LogCard({ log }: { log: SerializeFrom<Log> }) {
   return (
     <LinkCard to={`/repos/${repoId}/logs/${log.id}`} className="mb-4">
       <div className="p-4 flex flex-col gap-1">
-        <LinkCardHeader
-          title={log.title}
-          tag={
-            <Badge
-              className={`whitespace-nowrap ${
-                statusVariants[log.status]
-              } text-xs font-medium px-2.5 py-0.5 rounded`}
-            >
-              {log.status.charAt(0).toUpperCase() + log.status.slice(1)}
-            </Badge>
-          }
-        />
+        <LinkCardHeader title={log.title} tag={renderStatus()} />
         <LinkCardBody>
           {log.summary && (
             <div className="relative">
@@ -135,9 +150,11 @@ function LogsHeader() {
             <span className="text-md">New update</span>
           </Link>
         </Button>
-        <Button>
-          <ExternalLink className="mr-2 h-4 w-4" />{" "}
-          <span className="text-md">View changelog</span>
+        <Button asChild>
+          <Link to={`/${repoId}/logs`} target="_blank" className="gap-2">
+            <ExternalLink className="mr-2 h-4 w-4" />{" "}
+            <span className="text-md">View changelog</span>
+          </Link>
         </Button>
       </div>
     </div>
