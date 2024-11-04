@@ -27,10 +27,21 @@ model Repo {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   name            String // Repository name
+  owner           String // Repository owner
   fullName        String // Full name (owner/repo)
   description     String? // Repository description
   defaultBranch   String
   stargazersCount Int      @default(0)
+
+  // Theme customization fields
+  themeHeaderBg        String? @default("#e4e4e7") // Zinc-200
+  originalLogoFilepath String?
+  croppedLogoFilepath  String?
+  lastCrop             Json? // For storing crop information
+  themeHeading         String? @default("Changelog")
+  themeDescription     String? @default("A changelog for your project")
+  themeLinkText        String? @default("View on GitHub")
+  themeLinkPath        String? @default("https://github.com/your-repo")
 
   // Relations
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -42,6 +53,9 @@ model Repo {
   nodes      RepoNode[]
 
   logs Log[]
+
+  ingested               Boolean @default(false)
+  finishedInitialization Boolean @default(false)
 
   @@unique([userId, fullName])
 }
@@ -77,6 +91,8 @@ model RepoNode {
 enum Status {
   pending
   processing
+  summarizing
+  embedding
   completed
   failed
 }
@@ -125,10 +141,20 @@ model Log {
   publishedDate DateTime?
   status        LogStatus @default(draft)
 
+  generationStatus ChangelogGenerationStatus? @default(pending)
 }
 
 enum LogStatus {
   draft
   published
   archived
+}
+
+enum ChangelogGenerationStatus {
+  pending
+  summarizing
+  context
+  updating
+  completed
+  error
 }

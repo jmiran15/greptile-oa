@@ -8,20 +8,15 @@
 //       "## What's New\n\n- Upgraded to Next.js 14\n- Implemented edge caching\n- Reduced bundle size by 30%",
 //   },
 
+import { Log } from "@prisma/client";
+import { SerializeFrom } from "@remix-run/node";
 import { Link } from "@remix-run/react";
+import { Markdown } from "~/components/markdown";
 import { Separator } from "~/components/ui/separator";
 import { cn } from "~/lib/utils";
 
-type Log = {
-  id: string;
-  title: string;
-  publishDate: string;
-  summary: string;
-  content: string;
-};
-
 interface ChangesProps {
-  logs: Log[];
+  logs: SerializeFrom<Log[]>;
   repoId?: string;
   isMobile?: boolean;
 }
@@ -47,12 +42,19 @@ export default function Changes({ logs, repoId, isMobile }: ChangesProps) {
                   })}
                 >
                   <p className="text-muted-foreground w-full text-sm font-light">
-                    <time className="sticky top-10" dateTime={log.publishDate}>
-                      {new Date(log.publishDate).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
+                    <time
+                      className="sticky top-10"
+                      dateTime={log.publishedDate ?? undefined}
+                    >
+                      {log.publishedDate &&
+                        new Date(log.publishedDate).toLocaleDateString(
+                          "en-US",
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          }
+                        )}
                     </time>
                   </p>
                 </div>
@@ -84,9 +86,13 @@ export default function Changes({ logs, repoId, isMobile }: ChangesProps) {
                 </Link>
 
                 {/* Summary */}
-                <p className="text-muted-foreground text-base font-light">
-                  {log.summary}
-                </p>
+                {/* <p className=""> */}
+                {/* {log.summary} */}
+                <Markdown
+                  content={log.summary ?? ""}
+                  className="prose-xs text-muted-foreground text-base font-light"
+                />
+                {/* </p> */}
               </div>
             </div>
 

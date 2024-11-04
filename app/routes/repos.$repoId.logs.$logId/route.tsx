@@ -12,7 +12,7 @@ import {
   useLoaderData,
   useNavigation,
 } from "@remix-run/react";
-import { ArrowLeft, ExternalLink, GitMerge } from "lucide-react";
+import { ArrowLeft, ExternalLink, GitMerge, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { BlockerDialog } from "~/components/blocker-dialog";
@@ -33,8 +33,13 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Separator } from "~/components/ui/separator";
+import { Skeleton } from "~/components/ui/skeleton";
 import { prisma } from "~/db.server";
 import { useBlocker } from "~/hooks/use-blocker";
+import {
+  getStatusDisplay,
+  useChangelogProgress,
+} from "~/hooks/use-changelog-progress";
 import { useToast } from "~/hooks/use-toast";
 
 const UpdateLogSchema = z.object({
@@ -45,7 +50,7 @@ const UpdateLogSchema = z.object({
 });
 
 export const loader = async ({ params }: LoaderFunctionArgs) => {
-  const { repoId, logId } = params;
+  const { logId } = params;
 
   const log = await prisma.log.findUnique({
     where: { id: logId },
@@ -102,7 +107,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
       await prisma.log.update({
         where: { id: logId },
-        data: { status: "published" },
+        data: {
+          status: "published",
+          publishedDate: new Date(),
+        },
       });
 
       return json({ success: true });
@@ -137,14 +145,36 @@ export default function EditLog() {
   const navigation = useNavigation();
   const publishFetcher = useFetcher();
   const archiveFetcher = useFetcher();
-
   const [isEdited, setIsEdited] = useState(false);
   const [showBlockerDialog, setShowBlockerDialog] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-
-  // Block navigation if there are unsaved changes
   const blocker = useBlocker(isEdited);
   const { toast } = useToast();
+  const progress = useChangelogProgress(log.id);
+
+  const isGenerating =
+    (progress?.progress.status && progress.progress.status !== "completed") ||
+    log.generationStatus !== "completed";
+  const hasError =
+    progress?.progress.status === "error" || log.generationStatus === "error";
+
+  const renderProgressBadge = () => {
+    if (!progress?.progress.status || log.generationStatus === "completed")
+      return null;
+
+    return (
+      <div className="mb-8 p-4 rounded-lg border bg-muted">
+        <div className="flex items-center gap-2">
+          {progress.progress.status !== "completed" && (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          )}
+          <span className="text-sm font-medium">
+            {getStatusDisplay(progress.progress.status || log.generationStatus)}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (blocker.state === "blocked") {
@@ -196,7 +226,7 @@ export default function EditLog() {
 
   return (
     <Container className="max-w-5xl">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" asChild>
             <Link to={`/repos/${log.repoId}/logs`}>
@@ -206,7 +236,7 @@ export default function EditLog() {
           </Button>
           {log.status === "published" && (
             <Button variant="outline" asChild>
-              <Link to={`/logs/${log.id}`}>
+              <Link to={`/${log.repoId}/logs/${log.id}`}>
                 <ExternalLink className="mr-2 h-4 w-4" />
                 View log
               </Link>
@@ -216,7 +246,10 @@ export default function EditLog() {
         <div className="flex items-center gap-2">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={isLoading}>
+              <Button
+                variant="destructive"
+                disabled={isLoading || (isGenerating && !hasError)}
+              >
                 Archive
               </Button>
             </AlertDialogTrigger>
@@ -235,7 +268,7 @@ export default function EditLog() {
                   <Button
                     variant="destructive"
                     type="submit"
-                    disabled={isLoading}
+                    disabled={isLoading || (isGenerating && !hasError)}
                   >
                     {isLoading ? "Archiving..." : "Archive"}
                   </Button>
@@ -253,7 +286,7 @@ export default function EditLog() {
             <Button
               type="submit"
               variant="outline"
-              disabled={isLoading || !log.content}
+              disabled={isLoading || isGenerating || !log.content}
             >
               {isLoading
                 ? "Loading..."
@@ -266,17 +299,19 @@ export default function EditLog() {
           <Button
             type="submit"
             form="edit-form"
-            disabled={!isEdited || isLoading}
+            disabled={!isEdited || isLoading || isGenerating}
           >
             {isLoading ? "Saving..." : "Save changes"}
           </Button>
         </div>
       </div>
 
-      <Separator className="mb-8" />
+      <Separator />
+
+      {renderProgressBadge()}
 
       {log.prNumber && (
-        <div className="mb-8 p-4 rounded-lg border bg-muted">
+        <div className="p-4 rounded-lg border bg-muted">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <GitMerge className="h-4 w-4" />
             <span>Created from PR #{log.prNumber}</span>
@@ -292,7 +327,7 @@ export default function EditLog() {
         id="edit-form"
         method="post"
         ref={formRef}
-        className="space-y-8"
+        className="space-y-4"
         onChange={() => setIsEdited(true)}
       >
         <input type="hidden" name="intent" value="update" />
@@ -334,14 +369,23 @@ export default function EditLog() {
 
         <div className="space-y-4">
           <Label htmlFor="content">Content</Label>
-          <AutoGrowTextarea
-            id="content"
-            name="content"
-            value={formData.content}
-            onChange={handleChange}
-            error={actionData?.errors?.content?.[0]}
-            placeholder="Write your content here..."
-          />
+          {isGenerating ? (
+            <div className="space-y-2">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+          ) : (
+            <AutoGrowTextarea
+              id="content"
+              name="content"
+              value={formData.content}
+              onChange={handleChange}
+              error={actionData?.errors?.content?.[0]}
+              placeholder="Write your content here..."
+              disabled={isGenerating}
+            />
+          )}
           {actionData?.errors?.content && (
             <p className="text-sm text-destructive">
               {actionData.errors.content[0]}
@@ -358,3 +402,7 @@ export default function EditLog() {
     </Container>
   );
 }
+
+export const handle = {
+  PATH: (repoId: string) => `/repos/${repoId}/logs`,
+};

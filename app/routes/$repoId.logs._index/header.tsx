@@ -8,6 +8,8 @@ interface ChangelogHeaderProps {
   title: string;
   description: string;
   path: string;
+  linkText: string;
+  headerBg: string;
   isMobile?: boolean;
 }
 
@@ -17,10 +19,16 @@ export default function ChangelogHeader({
   title,
   description,
   path,
+  linkText,
+  headerBg,
   isMobile,
 }: ChangelogHeaderProps) {
+  const bgStyle = headerBg.includes("gradient")
+    ? { background: headerBg }
+    : { backgroundColor: headerBg };
+
   return (
-    <div className="w-full bg-primary/5">
+    <div className="w-full" style={bgStyle}>
       <div className="mx-auto max-w-4xl px-4 py-12">
         <header
           className={cn(
@@ -31,12 +39,13 @@ export default function ChangelogHeader({
             }
           )}
         >
-          {/* Logo */}
-          <img
-            src={logoPath}
-            alt={logoAlt}
-            className="h-16 w-16 rounded-lg object-contain"
-          />
+          {logoPath && (
+            <img
+              src={logoPath}
+              alt={logoAlt}
+              className="h-16 w-16 rounded-lg object-contain"
+            />
+          )}
 
           {/* Title and Description */}
           <div className="space-y-2">
@@ -71,7 +80,7 @@ export default function ChangelogHeader({
             target="_blank"
             rel="noopener noreferrer"
           >
-            Visit Website →
+            {linkText} →
           </Link>
         </header>
       </div>

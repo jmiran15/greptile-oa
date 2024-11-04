@@ -10,10 +10,10 @@ import { performance } from "perf_hooks";
 import { prisma } from "~/db.server";
 
 import { Embedding } from "@prisma/client";
-import { embed } from "~/queues/ingestFile/ingestFile.server";
-import { generateSimilarUserQueries } from "./inferencePrompts/augmentQuery.server";
-import { generateHyDE } from "./inferencePrompts/HyDE.server";
-import { generateSubQuestions } from "./inferencePrompts/subquestions.server";
+import { embed } from "~/queues/ingestion/ingestFile.server";
+import { generateSimilarUserQueries } from "../prompts/search/augmentQuery.server";
+import { generateHyDE } from "../prompts/search/HyDE.server";
+import { generateSubQuestions } from "../prompts/search/subquestions.server";
 import { cohere, openai } from "./providers.server";
 
 const DEBUG_TIMING = process.env.NODE_ENV === "development";
