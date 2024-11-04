@@ -4,6 +4,7 @@ import { Separator } from "@radix-ui/react-select";
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { Link, useLoaderData, useParams } from "@remix-run/react";
 import { ChevronLeft } from "lucide-react";
+import { Markdown } from "~/components/markdown";
 import { prisma } from "~/db.server";
 
 export async function loader({ params }: LoaderFunctionArgs) {
@@ -56,12 +57,14 @@ export default function ChangelogEntry() {
                 })}
             </time>
             <h1 className="text-4xl font-bold tracking-tight">{log.title}</h1>
-            <p className="text-xl text-muted-foreground">{log.summary}</p>
+            <Markdown content={log.summary ?? ""} className="prose" />
           </header>
 
           <Separator />
 
-          <div className="prose prose-invert max-w-none">{log.content}</div>
+          <div className="prose max-w-none">
+            <Markdown content={log.content ?? ""} />
+          </div>
         </article>
       </div>
     </div>

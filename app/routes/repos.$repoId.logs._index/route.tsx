@@ -6,6 +6,7 @@ import { DateTime } from "luxon";
 import { LinkCard, LinkCardBody, LinkCardHeader } from "~/components/card";
 import Container from "~/components/container";
 import Description from "~/components/description";
+import { Markdown } from "~/components/markdown";
 import Title from "~/components/title";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -108,7 +109,7 @@ function LogCard({ log }: { log: SerializeFrom<Log> }) {
           {log.summary && (
             <div className="relative">
               <div className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                {log.summary}
+                <Markdown content={log.summary} className="prose-xs" />
               </div>
               <div className="absolute bottom-0 right-0 w-1/4 h-full bg-gradient-to-l from-white to-transparent" />
             </div>
