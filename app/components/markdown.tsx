@@ -22,7 +22,7 @@ export const Markdown = memo(function Markdown({
 
   return (
     <div
-      className={`${className}`}
+      className={`prose prose-sm max-w-full break-words overflow-hidden ${className}`}
       dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
     />
   );

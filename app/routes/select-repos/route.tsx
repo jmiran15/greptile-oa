@@ -108,57 +108,62 @@ export default function SelectRepos() {
   const [disabled, setDisabled] = useState(true);
 
   return (
-    <Container className="max-w-5xl">
-      <div className="flex flex-col sm:flex-row items-start justify-between mb-6">
-        <div className="flex flex-col">
-          <Title>Select Repositories</Title>
-          <Description>Choose repositories to track changes</Description>
+    <div className="h-screen w-screen overflow-hidden">
+      <Container className="max-w-5xl">
+        <div className="flex flex-col sm:flex-row items-start justify-between mb-6">
+          <div className="flex flex-col">
+            <Title>Select Repositories</Title>
+            <Description>Choose repositories to track changes</Description>
+          </div>
         </div>
-      </div>
-      <Card>
-        <CardContent className="pt-6">
-          <Form
-            method="post"
-            onChange={(e) => {
-              const form = e.currentTarget;
-              const hasSelected =
-                form.querySelectorAll('input[name="repos"]:checked').length > 0;
-              setDisabled(!hasSelected);
-            }}
-            className="space-y-4"
-          >
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pr-4">
-              {availableRepos.map((repo) => (
-                <label
-                  key={repo.id}
-                  className="flex items-start space-x-3 p-4 rounded-lg border hover:bg-accent cursor-pointer"
-                >
-                  <Checkbox name="repos" value={repo.full_name} />
-                  <div className="space-y-1">
-                    <p className="font-medium">{repo.full_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {repo.description || "No description"}
-                    </p>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>⭐ {repo.stargazers_count}</span>
-                      <span>🔀 {repo.default_branch}</span>
-                    </div>
-                  </div>
-                </label>
-              ))}
-            </div>
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isSubmitting || disabled}
+        <Card>
+          <CardContent className="pt-6">
+            <Form
+              method="post"
+              onChange={(e) => {
+                const form = e.currentTarget;
+                const hasSelected =
+                  form.querySelectorAll('input[name="repos"]:checked').length >
+                  0;
+                setDisabled(!hasSelected);
+              }}
+              className="space-y-4"
             >
-              {isSubmitting
-                ? "Adding repositories..."
-                : "Add selected repositories"}
-            </Button>
-          </Form>
-        </CardContent>
-      </Card>
-    </Container>
+              <div className="max-h-[60vh] overflow-y-auto no-scrollbar relative h-full">
+                <div className="relative w-full space-y-4">
+                  {availableRepos.map((repo) => (
+                    <label
+                      key={repo.id}
+                      className="flex items-start space-x-3 p-4 rounded-lg border hover:bg-accent cursor-pointer"
+                    >
+                      <Checkbox name="repos" value={repo.full_name} />
+                      <div className="space-y-1">
+                        <p className="font-medium">{repo.full_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {repo.description || "No description"}
+                        </p>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>⭐ {repo.stargazers_count}</span>
+                          <span>🔀 {repo.default_branch}</span>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isSubmitting || disabled}
+              >
+                {isSubmitting
+                  ? "Adding repositories..."
+                  : "Add selected repositories"}
+              </Button>
+            </Form>
+          </CardContent>
+        </Card>
+      </Container>
+    </div>
   );
 }

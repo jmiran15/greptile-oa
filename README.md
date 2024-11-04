@@ -1,4 +1,4 @@
-The app is deployed at - https://
+The app is deployed at - [changelog generator](https://changeloggen.fly.dev/)
 And here is a quick demo - https://
 
 How to run the app locally:
@@ -9,8 +9,6 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres"
 SESSION_SECRET="secret"
 REDIS_URL="redis url"
 OPENAI_API_KEY="key"
-APP_ID="github app id"
-INSTALLATION_ID="github installation id"
 PRIVATE_KEY="github private key"
 GITHUB_CLIENT_ID="github client id"
 GITHUB_CLIENT_SECRET="github client secret"

@@ -21,7 +21,7 @@ const registeredQueues =
 
 export function Queue<Payload>(
   name: string,
-  handler: Processor<Payload>,
+  handler: Processor<Payload>
 ): AugmentedQueue<Payload> {
   if (!registeredQueues[name]) {
     const queue = new BullQueue(name, { connection: redis });
@@ -29,7 +29,7 @@ export function Queue<Payload>(
     const worker = new Worker<Payload>(name, handler, {
       connection: redis,
       lockDuration: 1000 * 60 * 15,
-      concurrency: 16,
+      concurrency: 16 * 2,
     });
 
     registeredQueues[name] = {

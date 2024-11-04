@@ -51,7 +51,7 @@ export default function RepoChangelog() {
   const isMobile = useIsMobile();
 
   return (
-    <div className="min-h-screen bg-background flex flex-col gap-10">
+    <div className="h-screen bg-background flex flex-col gap-10">
       <ChangelogHeader
         logoPath={repo.croppedLogoFilepath || ""}
         logoAlt={`${repo.name} logo`}
@@ -63,7 +63,7 @@ export default function RepoChangelog() {
         isMobile={isMobile}
       />
 
-      <div className="mx-auto w-full max-w-4xl px-4">
+      <div className="mx-auto w-full max-w-4xl px-4 h-full ">
         <Changes logs={logs} repoId={repoId} isMobile={isMobile} />
       </div>
     </div>

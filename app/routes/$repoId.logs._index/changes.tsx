@@ -11,7 +11,6 @@
 import { Log } from "@prisma/client";
 import { SerializeFrom } from "@remix-run/node";
 import { Link } from "@remix-run/react";
-import { Markdown } from "~/components/markdown";
 import { Separator } from "~/components/ui/separator";
 import { cn } from "~/lib/utils";
 
@@ -29,7 +28,7 @@ export default function Changes({ logs, repoId, isMobile }: ChangesProps) {
           <div key={log.id}>
             <div
               className={cn("relative flex w-full", {
-                "flex-col": isMobile || true,
+                "flex-col": isMobile,
                 "flex-col md:flex-row": !isMobile,
               })}
             >
@@ -37,7 +36,7 @@ export default function Changes({ logs, repoId, isMobile }: ChangesProps) {
               <div className="relative flex">
                 <div
                   className={cn("flex pb-4", {
-                    "w-full": isMobile || true,
+                    "w-full": isMobile,
                     "w-full md:w-[200px] md:pb-0": !isMobile,
                   })}
                 >
@@ -62,7 +61,7 @@ export default function Changes({ logs, repoId, isMobile }: ChangesProps) {
                 {/* Timeline - Only show when not mobile */}
                 <div
                   className={cn("relative w-full", {
-                    hidden: isMobile || true,
+                    hidden: isMobile,
                     "hidden md:flex md:w-[150px]": !isMobile,
                   })}
                 >
@@ -85,13 +84,17 @@ export default function Changes({ logs, repoId, isMobile }: ChangesProps) {
                   </h2>
                 </Link>
 
+                <p className="text-muted-foreground text-base font-light">
+                  {log.summary}
+                </p>
+
                 {/* Summary */}
                 {/* <p className=""> */}
                 {/* {log.summary} */}
-                <Markdown
+                {/* <Markdown
                   content={log.summary ?? ""}
                   className="prose-xs text-muted-foreground text-base font-light"
-                />
+                /> */}
                 {/* </p> */}
               </div>
             </div>
@@ -100,7 +103,7 @@ export default function Changes({ logs, repoId, isMobile }: ChangesProps) {
             {i !== logs.length - 1 && (
               <Separator
                 className={cn("bg-border/60 mb-16", {
-                  block: isMobile || true,
+                  block: isMobile,
                   "block md:hidden": !isMobile,
                 })}
               />
