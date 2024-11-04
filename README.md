@@ -1,5 +1,5 @@
 The app is deployed at - [changelog generator](https://changeloggen.fly.dev/)
-And here is a quick demo - https://
+And here is a quick demo [demo](https://drive.google.com/file/d/1mqxQWBwUgMT8h9k8cS2n3hseV2-f8wWX/view?usp=sharing)
 
 How to run the app locally:
 Here is the .env.example:
@@ -66,6 +66,7 @@ The changelog generation process:
 1. Summarize the patch of a file in the PR
 2. Build a "changelog tree" by augmenting the summary of the changes with summaries of the parent paths.
    For example, if there were changes to the file /app/components/button.tsx, we would create something like
+   ```
    /app
    summary of the /app dir
    ---/components
@@ -73,14 +74,14 @@ The changelog generation process:
    ------/button.tsx
    ------- summary of the button file
    ------- summary of the changes made to button.tsx
-
+   ```
    The goal is to provide some general context about the codebase so that the llm can infer what effect changes actually have on a repo (rather than just summarizing what changed in the code)
 
    The summaries for folders and files are generated in the "ingestion" process and are saved in the db.
 
-3. Once we generate the "changelog tree" we prompt an llm to "ask questions". This llm's purpuse is to ask any questions about the patches (based on the "changelog tree") that could be answered by searching in the codebase. For example, if a function called "getLinks" was optimized by batching, we wouldn't necessarily know what the effects of that change were throughout the codebase. In this case, the llm would return ~ "What does the getLinks function do?" as one of the questions to try to get more context.
-4. Once we have a list of questions, we query the codebase with with basic RAG.
-5. Once we have the answers, we call a final llm with the intial "changelog tree" and a list of question and answer pairs and ask it to generate a changelog.
+4. Once we generate the "changelog tree" we prompt an llm to "ask questions". This llm's purpuse is to ask any questions about the patches (based on the "changelog tree") that could be answered by searching in the codebase. For example, if a function called "getLinks" was optimized by batching, we wouldn't necessarily know what the effects of that change were throughout the codebase. In this case, the llm would return ~ "What does the getLinks function do?" as one of the questions to try to get more context.
+5. Once we have a list of questions, we query the codebase with with basic RAG.
+6. Once we have the answers, we call a final llm with the intial "changelog tree" and a list of question and answer pairs and ask it to generate a changelog.
 
 Codebase ingestion process:
 
