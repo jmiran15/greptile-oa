@@ -65,6 +65,7 @@ const config = {
     pruneRepoTreeUserPrompt({ tree }),
   schema: PruneResultSchema,
   responseFormatKey: "pruning",
+  maxTokens: 2048 * 4,
 } as const;
 
 export async function pruneRepoTree({
